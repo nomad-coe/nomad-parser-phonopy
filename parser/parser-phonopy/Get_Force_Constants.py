@@ -37,6 +37,13 @@ phonopy_obj.produce_force_constants()
 FC2 = phonopy_obj.get_force_constants()
 ####
 
+#### obtaining information about supercell
+super_c=phonopy_obj.supercell
+s_cell = super_c.get_cell()
+super_pos = super_c.get_positions()
+super_sym = np.array(super_c.get_chemical_symbols())
+####
+
 #### Converting properties to Si unitis
 converter_FC2 = convert_unit_function('eV*angstrom**-2', 'joules*meter**-2')
 convert_angstrom = convert_unit_function('angstrom', 'meter')
@@ -49,23 +56,33 @@ displacement = convert_angstrom(displacement)
 #### Writing JSON
 from nomadcore.parser_backend import *
 TEST = open('TEST.json','w')
-TEST.write('[')
-Parse = JsonParseEventsWriterBackend('TEST',TEST)
+path = '../../../../nomad-meta-info/meta_info/nomad_meta_info/public.nomadmetainfo.json'
+metaInfoPath = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), path))
+metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
+                                  dependencyLoader=None,
+                                  extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
+                                  uri=None)
+Parse = JsonParseEventsWriterBackend(metaInfoEnv)
 Parse.startedParsingSession(...)
-sRun = Parse.openSection("section_run")
-sMethod = Parse.openSection("section_method")
-sBaseSystem = Parse.openSection("section_system")
-# output base geometry
-Parse.addArrayValues('simulation_cell', cell)
+#sRun = Parse.openSection("section_run")
+#sMethod = Parse.openSection("section_method")
+#sBaseSystem = Parse.openSection("section_system")
+Parse.openSection('section_system')
 Parse.addArrayValues('atom_labels', symbols)
 Parse.addArrayValues('atom_positions', positions)
-Parse.closeSection("section_system", sBaseSystem)
-sSuperCellSystem = Parse.openSection("section_system")
-Parse.addValue("original_system_ref", sBaseSystem)
-...
-Parse.closeSection("section_system", sSuperCellSystem)
-
+Parse.addArrayValue("original_system_ref", cell)
+Parse.addArrayValues('SC_Matrix', supercell_matrix)
+#Parse.closeSection("section_system", sBaseSystem)
+#...
+#sSuperCellSystem = Parse.openSection("section_system")
+Parse.addArrayValues('super_cell_atom_labels', super_sym)
+Parse.addArrayValues('atom_positions', super_pos)
+Parse.addArrayValue('original_system_ref', s_cell)
+#Parse.closeSection("section_system", sSuperCellSystem)
+Parse.openSection('')
 #Parse.addArray(None,np.shape(FC2))
+#sHessian = 
 Parse.addArrayValues('Hessian', FC2)
 #Parse.addArray(None,np.shape(supercell_matrix))
 Parse.addArrayValues('SC_Matrix', supercell_matrix)
@@ -74,6 +91,5 @@ Parse.addArrayValues('Primitive_atoms', symbols)
 Parse.addArrayValues('postions', positions)
 Parse.addValue('displacement', displacement)
 Parse.addValue('symprec', sym)
-TEST.write(']')
 ####
 
