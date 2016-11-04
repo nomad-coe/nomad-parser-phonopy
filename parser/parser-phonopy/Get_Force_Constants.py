@@ -63,33 +63,34 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
                                   dependencyLoader=None,
                                   extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
                                   uri=None)
-Parse = JsonParseEventsWriterBackend(metaInfoEnv)
-Parse.startedParsingSession(...)
-#sRun = Parse.openSection("section_run")
-#sMethod = Parse.openSection("section_method")
-#sBaseSystem = Parse.openSection("section_system")
-Parse.openSection('section_system')
-Parse.addArrayValues('atom_labels', symbols)
-Parse.addArrayValues('atom_positions', positions)
-Parse.addArrayValue("original_system_ref", cell)
-Parse.addArrayValues('SC_Matrix', supercell_matrix)
-#Parse.closeSection("section_system", sBaseSystem)
-#...
-#sSuperCellSystem = Parse.openSection("section_system")
-Parse.addArrayValues('super_cell_atom_labels', super_sym)
-Parse.addArrayValues('atom_positions', super_pos)
-Parse.addArrayValue('original_system_ref', s_cell)
-#Parse.closeSection("section_system", sSuperCellSystem)
-Parse.openSection('')
-#Parse.addArray(None,np.shape(FC2))
-#sHessian = 
-Parse.addArrayValues('Hessian', FC2)
-#Parse.addArray(None,np.shape(supercell_matrix))
-Parse.addArrayValues('SC_Matrix', supercell_matrix)
-Parse.addArrayValues('Primitive_cell', cell)
-Parse.addArrayValues('Primitive_atoms', symbols)
-Parse.addArrayValues('postions', positions)
-Parse.addValue('displacement', displacement)
-Parse.addValue('symprec', sym)
-####
+def parse(name):
+    Parse = JsonParseEventsWriterBackend(metaInfoEnv)
+    Parse.startedParsingSession(...)
+    #sRun = Parse.openSection("section_run")
+    #sMethod = Parse.openSection("section_method")
+    #sBaseSystem = Parse.openSection("section_system")
+    with open(Parse.openSection('section_system')):
+        Parse.addArrayValues('atom_labels', symbols)
+        Parse.addArrayValues('atom_positions', positions)
+        Parse.addArrayValue("original_system_ref", cell)
+        Parse.addArrayValues('SC_Matrix', supercell_matrix)
+    #Parse.closeSection("section_system", sBaseSystem)
+    #...
+    #sSuperCellSystem = Parse.openSection("section_system")
+        Parse.addArrayValues('super_cell_atom_labels', super_sym)
+        Parse.addArrayValues('atom_positions', super_pos)
+        Parse.addArrayValue('original_system_ref', s_cell)
+    #Parse.closeSection("section_system", sSuperCellSystem)
+    with open(Parse.openSection('')):
+    #Parse.addArray(None,np.shape(FC2))
+    #sHessian = 
+    Parse.addArrayValues('Hessian', FC2)
+    #Parse.addArray(None,np.shape(supercell_matrix))
+    Parse.addArrayValues('SC_Matrix', supercell_matrix)
+    Parse.addArrayValues('Primitive_cell', cell)
+    Parse.addArrayValues('Primitive_atoms', symbols)
+    Parse.addArrayValues('postions', positions)
+    Parse.addValue('displacement', displacement)
+    Parse.addValue('symprec', sym)
+    ####
 
