@@ -18,7 +18,9 @@ from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 from nomadcore.parser_backend import *
 
 
-path = '../../../../nomad-meta-info/meta_info/nomad_meta_info/public.nomadmetainfo.json'
+parser_info = {"name": "parser_phonopy", "version": "0.1"}
+
+path = "../../../../nomad-meta-info/meta_info/nomad_meta_info/phonopy.nomadmetainfo.json"
 metaInfoPath = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), path))
 metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
@@ -29,33 +31,33 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
 
 def parse(name):
     Parse = JsonParseEventsWriterBackend(metaInfoEnv)
-    Parse.startedParsingSession(...)
-    Basesystem = Parse.openSection('section_system')
-    Parse.addArrayValues('atom_labels', symbols)
-    Parse.addArrayValues('atom_positions', positions)
+    Parse.startedParsingSession(name, parser_info)
+    Basesystem = Parse.openSection("section_system")
+    Parse.addArrayValues("atom_labels", symbols)
+    Parse.addArrayValues("atom_positions", positions)
     Parse.addArrayValue("simulation_cell", cell)
     Parse.closeSection("section_system", Basesystem)
-    Supercellsystem = Parse.openSection('section_system')
-    Parse.addArrayValues('atom_labels', super_sym)
-    Parse.addArrayValues('atom_positions', super_pos)
+    Supercellsystem = Parse.openSection("section_system")
+    Parse.addArrayValues("atom_labels", super_sym)
+    Parse.addArrayValues("atom_positions", super_pos)
     Parse.addArrayValue("simulation_cell", s_cell)
+    Parse.addArrayValues("SC_Matrix", supercell_matrix)
+    Parse.addArrayValue("x_phonopy_original_system_ref", Basesystem)
     Parse.closeSection("section_system", Supercellsystem)
-    Parse.addArrayValues('SC_Matrix', supercell_matrix)
-    Parse.addArrayValue("original_system_ref", Basesystem)
     method = Parse.openSection("section_method")
-
+    Parse.addValue("x_phonopy_symprec", sym)
+    Parse.addValue("x_phonopy_displacement", displacement)
+    Parse.closeSection("section_method", method)
     results = Parse.openSection("section_single_configuration_calculation")
-
-    Parse.addValue('symprec', sym)
-
-    with open(Parse.openSection('section_single_configuration_calculation')):
-        Parse.addArrayValues('Hessian', FC2)
-
-
+    Parse.addArrayValues("Hessian", FC2)
+    Parse.closeSection("section_single_configuration_calculation", results)
 
 #### determening properties of the undisplaced cell
 if __name__ == '__main__':
     import sys
+    name = sys.argv[1]
+
+
     cell_obj = read_aims("geometry.in")
     cell = cell_obj.get_cell()
     positions = cell_obj.get_positions()
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     super_pos = convert_angstrom(super_pos)
     positions = convert_angstrom(positions)
     displacement = convert_angstrom(displacement)
-    ####
+    
+    #### parsing
     parse(name)
 
