@@ -30,15 +30,24 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
 def parse(name):
     Parse = JsonParseEventsWriterBackend(metaInfoEnv)
     Parse.startedParsingSession(...)
-    with open(Parse.openSection('section_system')):
-        Parse.addArrayValues('atom_labels', symbols)
-        Parse.addArrayValues('atom_positions', positions)
-        Parse.addArrayValue("original_system_ref", cell)
-        Parse.addArrayValues('SC_Matrix', supercell_matrix)
-        Parse.addValue('symprec', sym)
-        Parse.addArrayValues('super_cell_atom_labels', super_sym)
-        Parse.addArrayValues('super_cell_atom_positions', super_pos)
-        Parse.addArrayValue('super_cell_system_ref', s_cell)
+    Basesystem = Parse.openSection('section_system')
+    Parse.addArrayValues('atom_labels', symbols)
+    Parse.addArrayValues('atom_positions', positions)
+    Parse.addArrayValue("simulation_cell", cell)
+    Parse.closeSection("section_system", Basesystem)
+    Supercellsystem = Parse.openSection('section_system')
+    Parse.addArrayValues('atom_labels', super_sym)
+    Parse.addArrayValues('atom_positions', super_pos)
+    Parse.addArrayValue("simulation_cell", s_cell)
+    Parse.closeSection("section_system", Supercellsystem)
+    Parse.addArrayValues('SC_Matrix', supercell_matrix)
+    Parse.addArrayValue("original_system_ref", Basesystem)
+    method = Parse.openSection("section_method")
+
+    results = Parse.openSection("section_single_configuration_calculation")
+
+    Parse.addValue('symprec', sym)
+
     with open(Parse.openSection('section_single_configuration_calculation')):
         Parse.addArrayValues('Hessian', FC2)
 
