@@ -17,6 +17,16 @@ from phonopy.units import *
 from phonopy.structure.atoms import Atoms
 from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 
+parser_info = {"name": "parser_phonopy", "version": "0.1"}
+
+path = "../../../../nomad-meta-info/meta_info/nomad_meta_info/phonopy.nomadmetainfo.json"
+metaInfoPath = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), path))
+metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
+                                  dependencyLoader=None,
+                                  extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
+                                  uri=None)
+
 #### Reading basic properties from JSON
 with open('TEST.json') as TEST:
 	data = json.load(TEST)
@@ -44,23 +54,49 @@ scaled_positions = cell_obj.get_scaled_positions()
 phonopy_obj = Phonopy(cell_obj, supercell_matrix, distance = displacement, symprec = sym)
 phonopy_obj.set_force_constants(Phi)
 
-#### for control
-print phonopy_obj.symmetry.get_international_table()
-####
-
 #### Determening paths in reciprocal space
 structure = pm.Structure(list(cell), list(symbols), scaled_positions)
 Kpath = HighSymmKpath(structure, symprec=sym, angle_tolerance=5)
 kpointpath = dict(Kpath.kpath)
 print kpointpath
-#from nomadcore.parser_backend import *
 parameters = generate_kPath(kpointpath)
-post_process_band(phonopy_obj, parameters, VaspToTHz)
+freqs, bands, bands_labels = post_process_band(phonopy_obj, parameters, VaspToTHz)
+####
+
+#### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
+#freqs = np.expand_dims(freqs, axis = 0)
+####
+
+#### Parsing frequencies
+Parse = JsonParseEventsWriterBackend(metaInfoEnv)
+Parse.startedParsingSession(name, parser_info)
+skBand = Parse.openSection("section_k_band")
+for i in range(len(freqs)):
+    freq = np.expand_dims(freqs[i], axis = 0)
+    skSegment = Parse.openSection("section_k_band_segment")
+    Parse.addArrayValues(freq, skSegment)
+    Parse.close("section_k_band_segment", skSegmment)
+    skPoints = Parse.openSection("section_k_band_segment")
+    Parse.addArrayValues(bands, skPoints)
+    Parse.close("section_k_band_segment", skPoints)
+    skLabels = Parse.openSection("section_k_band_segment")
+    Parse.addArrayValues(bands_labels[i], skLabels)
+    Parse.close("section_k_band_segment", skLabels)
+Parse.close("section_k_band", skBand)
+####
+
 num_of_atoms = cell_obj.get_number_of_atoms()
 mesh_density = 2*80**3/num_of_atoms
 power_factor = float(1)/float(3)
 mesh_number = np.round(mesh_density**power_factor)
 print '# proceding with a mesh of %d*%d*%d' % (mesh_number, mesh_number, mesh_number)
 mesh = [mesh_number,mesh_number,mesh_number]
-get_dos(phonopy_obj, mesh)
+f, dos = get_dos(phonopy_obj, mesh)
+
+#### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
+dos = np.expand_dims(dos, axis = 0)
+sDos = Parse.openSection("section_dos")
+Parse.addArray(dos, sDos)
+Parse.addArray(f, sDos)
+Parse.close("section_dos", sDos)
 #get_thermal_properties(phonopy_obj, mesh)

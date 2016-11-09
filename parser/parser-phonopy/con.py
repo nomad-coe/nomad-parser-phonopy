@@ -8,43 +8,6 @@ from phonopy import Phonopy
 from phonopy.structure.cells import Primitive
 
 
-class needed_methods():
-	def get_smallest_vectors(super_c, primitive, symprec=1e-5):
-
-	    p2s_map = primitive.get_primitive_to_supercell_map()
-	    size_super = super_c.get_number_of_atoms()
-	    size_prim = primitive.get_number_of_atoms()
-	    shortest_vectors = np.zeros((size_super, size_prim, 27, 3), dtype='double')
-	    multiplicity = np.zeros((size_super, size_prim), dtype='intc')
-	
-	    for i in range(size_super): # run in supercell
-	        for j, s_j in enumerate(p2s_map): # run in primitive
-	            vectors = get_equivalent_smallest_vectors(i,
-	                                                      s_j,
-	                                                      super_c,
-	                                                      primitive.get_cell(),
-	                                                      symprec)
-	            multiplicity[i][j] = len(vectors)
-	            for k, elem in enumerate(vectors):
-	                shortest_vectors[i][j][k] = elem
-	    return shortest_vectors, multiplicity
-
-	def back_to_reality(shortest_vec,super_c,primitive):
-
-	        dim = 3
-	        size_super = super_c.get_number_of_atoms()
-	        size_prim = primitive.get_number_of_atoms()
-	        lattice_p = primitive.get_cell()
-	        lattice = np.array(lattice_p)
-	        real_vec = np.zeros((size_super,size_prim,27,dim),dtype='double')
-	        for i in range(size_super):
-	                for j in range(size_prim):
-	                        for k in range(27):
-	                                real_vec[i][j][k] = np.dot(lattice,shortest_vec[i][j][k])
-	
-	        return real_vec
-		
-
 
 class Control:
     def __init__(self, file=None):
@@ -54,12 +17,6 @@ class Control:
         self.phonon["symmetry_thresh"] = 1E-6
         self.phonon["frequency_unit"] = "cm^-1"
         self.phonon["nac"] = {}
-        self.phonon["hessian"] = []
-        self.phonon["band"] = []
-        self.phonon["dos"] = {}
-        self.phonon["free_energy"] = {}
-        self.phonon["animation"] = []
-        self.phonon["modulations"] = {}
         if file is None:
             self.file = "control.in"
         else:
@@ -112,41 +69,6 @@ class Control:
                                        "method" : fields[3].lower(),
                                        "delta" : delta }
                         self.phonon["nac"].update(parameters)
-                    if (fields[1] == "hessian"):
-                        self.phonon["hessian"] = fields[2:]
-                    if (fields[1] == "band") and (len(fields) >= 11):
-                        parameters = { "kstart" : list(map(float, fields[2:5])),
-                                       "kend" : list(map(float, fields[5:8])),
-                                       "npoints" : int(fields[8]),
-                                       "startname" : fields[9],
-                                       "endname" : fields[10] }
-                        self.phonon["band"].append(parameters)
-                    if (fields[1] == "dos") and (len(fields) >= 7):
-                        parameters = { "fstart" : float(fields[2]),
-                                       "fend" : float(fields[3]),
-                                       "fpoints" : int(fields[4]),
-                                       "broad" : float(fields[5]),
-                                       "qdensity" : list(map(int, fields[6:])) }
-                        self.phonon["dos"].update(parameters)
-                    if (fields[1] == "free_energy") and (len(fields) >= 6):
-                        parameters = { "Tstart" : float(fields[2]),
-                                       "Tend" : float(fields[3]),
-                                       "Tpoints" : int(fields[4]),
-                                       "qdensity" : list(map(int, fields[5:])) }
-                        self.phonon["free_energy"].update(parameters)
-                    if (fields[1] == "animation") and (len(fields) >= 12):
-                        parameters = { "q" : list(map(float, fields[2:5])),
-                                       "band" : int(fields[5]),
-                                       "amp" : float(fields[6]),
-                                       "div" : int(fields[7]),
-                                       "shift" : list(map(float, fields[8:11])),
-                                       "files" : fields[11:] }
-                        self.phonon["animation"].append(parameters)
-                    if (fields[1] == "modulations") :
-                        parameters = { "q" : list(map(float, fields[2:5])),
-                                       "supercell" : list(map(int,fields[5:8])), 
-                                       "delta" : float(fields[8]) }
-                        self.phonon["modulations"].update(parameters)
 
         except Exception:
             #print (line,)

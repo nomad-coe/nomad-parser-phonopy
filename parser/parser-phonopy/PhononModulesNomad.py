@@ -97,13 +97,13 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                     for name in con_list:
                         if fnmatch(name, '*.out') == True:
                                 aims_out = '%s/%s' % (directory, name)
-                                print ('!!! WARNING your file seems to have a wrong name proceeding with %s' % aims_out)
+                                print ("!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out)
                                 check_var = True
                                 break
                     if check_var == False:
-                        print ('!!! No phonon calculations found')
+                        print ("!!! No phonon calculations found")
                         sys.exit(1)
-                    os.chdir('../')
+                    os.chdir("../")
                 supercell_calculated = read_aims_output(aims_out)
                 if ( (supercell_calculated.get_number_of_atoms() == supercell.get_number_of_atoms()) and
                      (supercell_calculated.get_atomic_numbers() == supercell.get_atomic_numbers()).all() and
@@ -121,7 +121,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                      (supercell_calculated.get_atomic_numbers() == supercell.get_atomic_numbers()).all() and
                      (abs(clean_position(supercell_calculated.get_scaled_positions())-clean_position(supercell.get_scaled_positions())) < tol).all() and
                      (abs(supercell_calculated.get_cell()-supercell.get_cell()) < tol).all() ):
-                     print ('!!! there seems to be a rounding error')
+                     print ("!!! there seems to be a rounding error")
                      forces = np.array(supercell_calculated.get_forces())
                      drift_force = forces.sum(axis=0)
                      #print "#   | correcting drift : %11.5f %11.5f %11.5f" % tuple(drift_force)
@@ -150,10 +150,6 @@ def post_process_band(phonopy_obj, parameters, frequency_unit_factor, is_eigenve
     bands_special_points = [distance]
     bands_labels = []
     label = parameters[0]["startname"]
-    if lookup_labels:
-        bands_labels.append(BandStructureLabels.get(label.lower(),label))
-    else:
-        bands_labels.append(label)
     for b in parameters:
         kstart = np.array(b["kstart"])
         kend = np.array(b["kend"])
@@ -166,9 +162,7 @@ def post_process_band(phonopy_obj, parameters, frequency_unit_factor, is_eigenve
             bands_distances.append(distance + dk_length*n)
         distance += dk_length * (npoints-1)
         bands_special_points.append(distance)
-        # assuming that startname is the same as previous endname
-        # (i.e. non-interrupted paths!)
-        label = b["endname"]
+        label = [b["startname"], b["endname"]]
         if lookup_labels:
             bands_labels.append(BandStructureLabels.get(label.lower(),label))
         else:
@@ -176,87 +170,9 @@ def post_process_band(phonopy_obj, parameters, frequency_unit_factor, is_eigenve
     bs_obj = BandStructure(bands, 
                            phonopy_obj.dynamical_matrix, 
                            is_eigenvectors=is_eigenvectors,
-                           factor=frequency_unit_factor)
-    # make band index first index (simpler for bands plotting !)
-    eigenvalues = np.vstack(bs_obj.get_eigenvalues()).T
-    frequencies = np.zeros_like(eigenvalues)
-    for i, eigenvalues_band in enumerate(eigenvalues):
-        frequencies_band = []
-        for eigenvalue in eigenvalues_band:
-            if eigenvalue < 0:
-                frequencies_band.append(-np.sqrt(-eigenvalue))
-            else: 
-                frequencies_band.append(np.sqrt(eigenvalue))
-        frequencies[i] = np.array(frequencies_band)
-    fmin = np.min(frequencies)
-    fmax = np.max(frequencies)
-    for (unit, factor) in AimsFrequencyUnitFactors.iteritems():
-        if (factor == frequency_unit_factor):
-            frequency_unit = unit
-            break
-    json_list = []
-    f = open("phonon-Bands.dat", 'w')
-    f.write("#\n")
-    f.write("# Phonon bands from phonopy!\n")
-    f.write("#\n")
-    lattice_real = phonopy_obj.unitcell.get_cell()
-    lattice_reciprocal = 2.0 * np.pi * np.linalg.inv(lattice_real.transpose())
-    for i in range(3):
-        f.write("# Reciprocal lattice vector %11.6f %11.6f %11.6f \n" % tuple(lattice_reciprocal[i]))
-    digits = int( math.ceil( math.log(len(parameters)+1,10) ) ) + 1
-    digits_string = "%0" + str(digits) + "d"
-    total_qpoints = 0
-    total_qpoints_bands = []
-    for i, b in enumerate(parameters):
-        f.write("#\n")
-        distance_start = bands_distances[total_qpoints]        
-        f.write( ("# %5s point for band " + digits_string + ", %5s = (%9.5f,%9.5f,%9.5f) will be at real distance = %11.5f \n") % \
-                  tuple(["Start"] + [i] + [b["startname"]] + b["kstart"] + [distance_start]) )
-        json_list.append(("# %5s point for band " + digits_string + ", %5s = (%9.5f,%9.5f,%9.5f) will be at real distance = %11.5f \n") % \
-                  tuple(["Start"] + [i] + [b["startname"]] + b["kstart"] + [distance_start]) )
-        total_qpoints += b["npoints"]
-        distance_end = bands_distances[total_qpoints-1]
-        f.write( ("# %5s point for band " + digits_string + ", %5s = (%9.5f,%9.5f,%9.5f) will be at real distance = %11.5f \n") % \
-                  tuple(["End"] + [i] + [b["endname"]] + b["kend"] + [distance_end]) )       
-        json_list.append(("# %5s point for band " + digits_string + ", %5s = (%9.5f,%9.5f,%9.5f) will be at real distance = %11.5f \n") % \
-                  tuple(["End"] + [i] + [b["endname"]] + b["kend"] + [distance_end]))          
-        total_qpoints_bands.append(total_qpoints)
-    f.write("#\n")
-    f.write("# number of phonon branches : %d \n" % len(frequencies))
-    f.write("#\n")
-    f.write("# q-distance(frac.)  frequencies(%s) \n" % frequency_unit)
-    for i, dq in enumerate(bands_distances):    
-        f.write("%f " % dq)
-        frequencies_at_q = frequencies[:,i]
-        for freq in frequencies_at_q:
-            f.write(" %11.6f" % (freq*bs_obj.get_unit_conversion_factor()))
-            json_list.append( "%11.6f \n" % (freq*bs_obj.get_unit_conversion_factor()))
-        f.write(" \n")
-        if (i+1) in total_qpoints_bands:
-            f.write("\n")
-    pretty_json = get_pretty_print(json_list)
-    json.dump(pretty_json, f)
-    f.close()
-    if write_yaml:
-        bs_obj.write_yaml()
-    if do_matplotlib:
-        params = { 'axes.labelsize': 20,
-                   'xtick.labelsize' : 16,
-                   'ytick.labelsize' : 16,
-                   'text.fontsize': 24 }
-        plt.rcParams.update(params)
-        plt.cla()
-        for frequencies_band in frequencies:
-            plt.plot(bands_distances, frequencies_band*bs_obj.get_unit_conversion_factor(), 'r-')
-        plt.xticks( bands_special_points,
-                    tuple("$\mathrm{\mathsf{%s}}$" % bands_labels[i] for i in range(len(bands_labels))) )
-        #print bands_labels
-        plt.xlabel('Wave vector')
-        plt.ylabel("Frequency (%s)" % AimsFrequencyUnitLabelsMatplotlib[frequency_unit])
-        plt.vlines(bands_special_points[1:-1], *plt.ylim())
-        plt.xlim(xmin=0, xmax=bands_distances[-1])
-        plt.ylim(ymin=round(fmin*bs_obj.get_unit_conversion_factor()))
-        plt.savefig("phonopy-FHI-aims-band_structure.pdf")
+                           factor=frequency_unit_factor)        
+    freqs = bs_obj.get_frequencies()
+    return freqs, np.array(bands), np.array(bands_labels)
 
 def get_dos(phonopy_obj, mesh):
         phonopy_obj.set_mesh(mesh, is_gamma_center=True)
@@ -267,10 +183,7 @@ def get_dos(phonopy_obj, mesh):
         max_freq = max(np.ravel(frequencies)) + max(np.ravel(frequencies))*0.05
         phonopy_obj.set_total_DOS(freq_min= min_freq, freq_max = max_freq, tetrahedron_method = True)
         f,dos = phonopy_obj.get_total_DOS()
-        d = open('phonon-DOS.dat','w')
-        for a, b in enumerate(f):
-                d.write('%.7f %.7f\n' % (b, dos[a]))
-        d.close()
+        return f, dos
 
 def get_thermal_properties(phonopy_obj, mesh):
         print ('#### NOT THE REAL UNITS')
@@ -279,7 +192,4 @@ def get_thermal_properties(phonopy_obj, mesh):
         T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
         kJmolToEv = 1.0 / EvTokJmol
         JmolToEv = kJmolToEv / 1000
-        d = open('phonon-thermal-properties.dat','w')
-        for a in range(len(T)):
-                d.write('%.7f %.7f %.7f %.7f\n' % (T[a], fe[a], entropy[a], cv[a]))
-        d.close()
+        return T, fe, entropy, cv
