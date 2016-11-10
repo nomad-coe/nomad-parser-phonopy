@@ -1,11 +1,11 @@
+#### phonopy parser based on the original work of Joerg Mayer on the phonopy-FHI-aims code
+
 import numpy as np
 from PhononModulesNomad import *
 from fnmatch import fnmatch
 import sys
 import math
 import os
-import pymatgen as pm
-from pymatgen.symmetry.bandstructure import HighSymmKpath
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
 from phonopy import Phonopy
@@ -53,18 +53,20 @@ cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(posi
 scaled_positions = cell_obj.get_scaled_positions()
 phonopy_obj = Phonopy(cell_obj, supercell_matrix, distance = displacement, symprec = sym)
 phonopy_obj.set_force_constants(Phi)
+####
 
 #### Determening paths in reciprocal space
-structure = pm.Structure(list(cell), list(symbols), scaled_positions)
-Kpath = HighSymmKpath(structure, symprec=sym, angle_tolerance=5)
-kpointpath = dict(Kpath.kpath)
-print kpointpath
-parameters = generate_kPath(kpointpath)
+parameters = generate_kPath_ase(cell)
 freqs, bands, bands_labels = post_process_band(phonopy_obj, parameters, VaspToTHz)
 ####
 
-#### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
-#freqs = np.expand_dims(freqs, axis = 0)
+#### converting THz to eV
+freqs = freqs*THzToEv
+####
+
+#### converting eV to Joules
+eVtoJoules = convert_unit_function('eV', 'joules')
+freqs = eVtoJoules(freqs)
 ####
 
 #### Parsing frequencies
@@ -85,18 +87,31 @@ for i in range(len(freqs)):
 Parse.close("section_k_band", skBand)
 ####
 
+#### Determening DOS
 num_of_atoms = cell_obj.get_number_of_atoms()
 mesh_density = 2*80**3/num_of_atoms
 power_factor = float(1)/float(3)
 mesh_number = np.round(mesh_density**power_factor)
-print '# proceding with a mesh of %d*%d*%d' % (mesh_number, mesh_number, mesh_number)
+print ('# proceding with a mesh of %d*%d*%d' % (mesh_number, mesh_number, mesh_number))
 mesh = [mesh_number,mesh_number,mesh_number]
 f, dos = get_dos(phonopy_obj, mesh)
+####
 
 #### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
 dos = np.expand_dims(dos, axis = 0)
+####
+
+#### converting eV to Joules
+f = eVtoJoules(f)
+####
+
+#### Parsing dos
 sDos = Parse.openSection("section_dos")
 Parse.addArray(dos, sDos)
 Parse.addArray(f, sDos)
 Parse.close("section_dos", sDos)
-#get_thermal_properties(phonopy_obj, mesh)
+####
+
+#### Determening Thermal properties
+T, fe, entropy, cv = get_thermal_properties(phonopy_obj, mesh)
+####

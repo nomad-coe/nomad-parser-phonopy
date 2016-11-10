@@ -4,6 +4,8 @@ import math
 import os
 import json
 from fnmatch import fnmatch
+from ase.geometry import cell_to_cellpar, crystal_structure_from_cell
+from ase.dft.kpoints import special_paths, special_points, parse_path_string
 from phonopy.units import *
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
@@ -47,33 +49,44 @@ def Write_FORCE_CONSTANTS(phonopy_obj, set_of_forces):
         force_constants = get_force_constants(forces, phonopy_obj.symmetry, phonopy_obj.supercell)
         write_FORCE_CONSTANTS(force_constants, filename='FORCE_CONSTANTS')
         Hessian = get_force_constants(forces, phonopy_obj.symmetry, phonopy_obj.supercell)
+####
 
-
-#### generate_kPath prepares the path genereated by pymatgen to be used with 
+#### generate_kPath prepares the path genereated by ASE to be used with 
 #### the function post_process_band
-def generate_kPath(kpointpath):
-        parameters = []
-        if float(np.shape(kpointpath['path'])>1):
-                for i, paths in enumerate(kpointpath['path']):
-                        for j, path in enumerate(paths):
-                                parameter = {}
-                                parameter['npoints'] = 100
-                                parameter['startname'] = str(path).split()[0]
-                                if j < len(paths)-1:
-                                        parameter['endname'] = str(paths[j+1]).split()[0]
-                                        parameter['kend'] = list(kpointpath['kpoints'][paths[j+1]])
-                                        #print kpointpath['kpoints'][path[j+1]]
-                                else:
-                                        parameter['endname'] = str(kpointpath['path'][0][0]).split()[0]
-                                        parameter['kend'] = list(kpointpath['kpoints'][kpointpath['path'][0][0]])
-                                parameter['kstart'] = list(kpointpath['kpoints'][path])
-                                parameters.append(parameter)
-
-        return parameters
+def generate_kPath_ase(cell):
+    lattice = crystal_structure_from_cell(cell) 
+    paths = parse_path_string(special_paths[lattice])
+    points = special_points[lattice]
+    k_points = [] 
+    for p in paths:
+        k_points.append([points[k] for k in p])
+    parameters = []
+    for h, seg in enumerate(k_points):
+        for i, path in enumerate(seg):
+            parameter = {}
+            parameter['npoints'] = 100
+            parameter['startname'] = paths[h][i]
+            if i == 0 and len(seg) > 2:
+                parameter['kstart'] = path
+                parameter['kend'] = seg[i+1]
+                parameter['endname'] = paths[h][i+1]
+                parameters.append(parameter)
+            elif i == (len(seg) - 2):
+                parameter['kstart'] = path
+                parameter['kend'] = seg[i+1]
+                parameter['endname'] = paths[h][i+1]
+                parameters.append(parameter)
+                break
+            else:
+                parameter['kstart'] = path
+                parameter['kend'] = seg[i+1]
+                parameter['endname'] = paths[h][i+1]
+                parameters.append(parameter)
+    return parameters
+####
 
 def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-6):
         symmetry = Symmetry(cell_obj)
-        #control = Control()
         phonopy_obj = Phonopy(cell_obj, 
                                 supercell_matrix, 
                                 distance = displacement, 
@@ -113,7 +126,6 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                     # but further processing below requires numpy array
                     forces = np.array(supercell_calculated.get_forces())
                     drift_force = forces.sum(axis=0)
-                    #print ("#   | correcting drift : %11.5f %11.5f %11.5f" % tuple(drift_force))
                     for force in forces:
                         force -= drift_force / forces.shape[0]
                     set_of_forces.append(forces)
@@ -124,7 +136,6 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                      print ("!!! there seems to be a rounding error")
                      forces = np.array(supercell_calculated.get_forces())
                      drift_force = forces.sum(axis=0)
-                     #print "#   | correcting drift : %11.5f %11.5f %11.5f" % tuple(drift_force)
                      for force in forces:
                         force -= drift_force / forces.shape[0]
                      set_of_forces.append(forces)
@@ -157,7 +168,6 @@ def post_process_band(phonopy_obj, parameters, frequency_unit_factor, is_eigenve
         dk = (kend-kstart)/(npoints-1)
         bands.append([(kstart + dk*n) for n in range(npoints)])
         dk_length = np.linalg.norm(dk)
-        # one long list to simplify output
         for n in range(npoints):
             bands_distances.append(distance + dk_length*n)
         distance += dk_length * (npoints-1)
@@ -191,5 +201,7 @@ def get_thermal_properties(phonopy_obj, mesh):
         phonopy_obj.set_thermal_properties()
         T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
         kJmolToEv = 1.0 / EvTokJmol
+        fe = fe*kJmolToEv
         JmolToEv = kJmolToEv / 1000
+        cv = JmolToEv*cv
         return T, fe, entropy, cv
