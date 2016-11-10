@@ -1,11 +1,13 @@
 #### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims
 
 import numpy as np
-from PhononModulesNomadpy import *
+from PhononModulesNomad import *
+import setup_paths
 from fnmatch import fnmatch
 import sys
 import math
 import os
+import argparse
 import pymatgen as pm
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
@@ -57,9 +59,20 @@ def parse(name):
 #### determening properties of the undisplaced cell
 if __name__ == '__main__':
     import sys
-    name = sys.argv[1]
 
+    parser = argparse.ArgumentParser(description='Parses a phonopy calculation.')
+    parser.add_argument('mainFileUri',
+                        help='The uri of the main file associated with this calculation.')
+    parser.add_argument('mainFilePath', default = None,
+                        help='The path to the main file associated with this calculation.')
+    parser.add_argument('--kind', default = 'FHI-aims', choices = ["FHI-aims"],
+                        help='The kind of phonopy calculation performed')
 
+    args = parser.parse(sys.argv)
+    if args.mainFilePath:
+        mainDir = os.path.dirname(os.path.dirname(os.path.abspath(args.mainFilePath)))
+        os.chdir(mainDir)
+    name = args.mainFileUri
     cell_obj = read_aims("geometry.in")
     cell = cell_obj.get_cell()
     positions = cell_obj.get_positions()
