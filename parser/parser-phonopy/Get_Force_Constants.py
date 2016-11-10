@@ -8,8 +8,6 @@ import sys
 import math
 import os
 import argparse
-import pymatgen as pm
-from pymatgen.symmetry.bandstructure import HighSymmKpath
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
 from phonopy import Phonopy
@@ -20,6 +18,7 @@ from phonopy.harmonic.force_constants import get_force_constants
 from phonopy.units import *
 from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 from nomadcore.parser_backend import *
+from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
 
 parser_info = {"name": "parser_phonopy", "version": "0.1"}
@@ -39,22 +38,23 @@ def parse(name):
     Basesystem = Parse.openSection("section_system")
     Parse.addArrayValues("atom_labels", symbols)
     Parse.addArrayValues("atom_positions", positions)
-    Parse.addArrayValue("simulation_cell", cell)
+    Parse.addArrayValues("simulation_cell", cell)
     Parse.closeSection("section_system", Basesystem)
     Supercellsystem = Parse.openSection("section_system")
     Parse.addArrayValues("atom_labels", super_sym)
     Parse.addArrayValues("atom_positions", super_pos)
-    Parse.addArrayValue("simulation_cell", s_cell)
-    Parse.addArrayValues("SC_Matrix", supercell_matrix)
-    Parse.addArrayValue("x_phonopy_original_system_ref", Basesystem)
+    Parse.addArrayValues("simulation_cell", s_cell)
+    Parse.addArrayValues("SC_matrix", supercell_matrix)
+    Parse.addValue("x_phonopy_original_system_ref", Basesystem)
     Parse.closeSection("section_system", Supercellsystem)
     method = Parse.openSection("section_method")
     Parse.addValue("x_phonopy_symprec", sym)
     Parse.addValue("x_phonopy_displacement", displacement)
     Parse.closeSection("section_method", method)
     results = Parse.openSection("section_single_configuration_calculation")
-    Parse.addArrayValues("Hessian", FC2)
+    Parse.addArrayValues("hessian_matrix", FC2)
     Parse.closeSection("section_single_configuration_calculation", results)
+    Parse.finishedParsingSession("ParseSuccess", None)
 
 #### determening properties of the undisplaced cell
 if __name__ == '__main__':
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--kind', default = 'FHI-aims', choices = ["FHI-aims"],
                         help='The kind of phonopy calculation performed')
 
-    args = parser.parse(sys.argv)
+    args = parser.parse_args()
     if args.mainFilePath:
         mainDir = os.path.dirname(os.path.dirname(os.path.abspath(args.mainFilePath)))
         os.chdir(mainDir)

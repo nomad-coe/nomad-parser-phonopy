@@ -18,7 +18,7 @@ object PhonopyParser extends SimpleExternalParserGenerator(
           }(breakOut): List[(String, jn.JString)])
       )) :: Nil
   ),
-  mainFileTypes = Seq("application/x-gtar"),
+  mainFileTypes = Seq("text/plain"),
   mainFileRe = "".r,
   cmd = Seq(lab.DefaultPythonInterpreter.pythonExe(), "${envDir}/parsers/phonopy/parser/parser-phonopy/Get_Force_Constants.py", "${mainFileUri}", "${mainFilePath}"),
   resList = Seq(
@@ -35,12 +35,16 @@ object PhonopyParser extends SimpleExternalParserGenerator(
   dirMap = Map(
     "parser-phonopy" -> "parsers/phonopy/parser/parser-phonopy",
     "nomad_meta_info" -> "nomad-meta-info/meta_info/nomad_meta_info"
-  ) ++ lab.DefaultPythonInterpreter.commonDirMapping()
+  ) ++ lab.DefaultPythonInterpreter.commonDirMapping(),
+  metaInfoEnv = Some(lab.meta.KnownMetaInfoEnvs.phonopy)
 ) {
+  val fileRe = ".*/phonopy-FHI-aims-displacement-0*1/control\\.in$".r
   override def isMainFile(filePath: String, bytePrefix: Array[Byte], stringPrefix: Option[String]): Option[ParserMatch] = {
-    if (filePath.endsWith(".*/phonopy-FHI-aims-displacement-0*1/control\\.in$"))
-      Some(ParserMatch(mainFileMatchPriority, mainFileMatchWeak))
-    else
-      None
+    filePath match {
+      case fileRe() =>
+        Some(ParserMatch(mainFileMatchPriority, mainFileMatchWeak))
+      case _ =>
+        None
+    }
   }
 }

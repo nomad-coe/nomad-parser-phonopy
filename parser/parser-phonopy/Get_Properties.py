@@ -5,7 +5,7 @@ from PhononModulesNomad import *
 from fnmatch import fnmatch
 import sys
 import math
-import os
+import os, logging
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
 from phonopy import Phonopy
@@ -93,7 +93,7 @@ num_of_atoms = cell_obj.get_number_of_atoms()
 mesh_density = 2*80**3/num_of_atoms
 power_factor = float(1)/float(3)
 mesh_number = np.round(mesh_density**power_factor)
-print ('# proceding with a mesh of %d*%d*%d' % (mesh_number, mesh_number, mesh_number))
+logging.info('# proceding with a mesh of %d*%d*%d',mesh_number, mesh_number, mesh_number)
 mesh = [mesh_number,mesh_number,mesh_number]
 f, dos = get_dos(phonopy_obj, mesh)
 ####

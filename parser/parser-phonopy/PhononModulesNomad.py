@@ -99,12 +99,12 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         for i in range(len(supercells)):
                 directories.append( ("phonopy-FHI-aims-displacement-%0" + str(digits) + "d") % (i+1))
         space_group = phonopy_obj.symmetry.get_international_table()
-        print (space_group)
+        #print (space_group)
         set_of_forces = []
         for directory, supercell in zip(directories, supercells):
                 aims_out = os.path.join(directory, directory + ".out")
                 if not os.path.isfile(aims_out):
-                    print ("!!! file not found: %s" % aims_out)
+                    #print ("!!! file not found: %s" % aims_out)
                     os.chdir(directory)
                     cwd = os.getcwd()
                     con_list = os.listdir(cwd)
@@ -112,11 +112,11 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                     for name in con_list:
                         if fnmatch(name, '*.out') == True:
                                 aims_out = '%s/%s' % (directory, name)
-                                print ("!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out)
+                                #print ("!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out)
                                 check_var = True
                                 break
                     if check_var == False:
-                        print ("!!! No phonon calculations found")
+                        #print ("!!! No phonon calculations found")
                         sys.exit(1)
                     os.chdir("../")
                 supercell_calculated = read_aims_output(aims_out)
@@ -135,14 +135,14 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                      (supercell_calculated.get_atomic_numbers() == supercell.get_atomic_numbers()).all() and
                      (abs(clean_position(supercell_calculated.get_scaled_positions())-clean_position(supercell.get_scaled_positions())) < tol).all() and
                      (abs(supercell_calculated.get_cell()-supercell.get_cell()) < tol).all() ):
-                     print ("!!! there seems to be a rounding error")
+                     #print ("!!! there seems to be a rounding error")
                      forces = np.array(supercell_calculated.get_forces())
                      drift_force = forces.sum(axis=0)
                      for force in forces:
                         force -= drift_force / forces.shape[0]
                      set_of_forces.append(forces)
                 else:
-                    print ("!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
+                    #print ("!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
                     sys.exit(2)
         return set_of_forces, phonopy_obj
 
@@ -198,7 +198,7 @@ def get_dos(phonopy_obj, mesh):
         return f, dos
 
 def get_thermal_properties(phonopy_obj, mesh):
-        print ('#### NOT THE REAL UNITS')
+        #print ('#### NOT THE REAL UNITS')
         phonopy_obj.set_mesh(mesh, is_gamma_center=True)
         phonopy_obj.set_thermal_properties()
         T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
