@@ -72,6 +72,7 @@ freqs = eVtoJoules(freqs)
 #### Parsing frequencies
 Parse = JsonParseEventsWriterBackend(metaInfoEnv)
 Parse.startedParsingSession(name, parser_info)
+sRun = Parse.openSection("section_run")
 skBand = Parse.openSection("section_k_band")
 for i in range(len(freqs)):
     freq = np.expand_dims(freqs[i], axis = 0)
@@ -115,3 +116,5 @@ Parse.close("section_dos", sDos)
 #### Determening Thermal properties
 T, fe, entropy, cv = get_thermal_properties(phonopy_obj, mesh)
 ####
+
+Parse.close("section_run", sRun)
