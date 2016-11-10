@@ -1,4 +1,4 @@
-#### phonopy parser based on the original work of Joerg Mayer on the phonopy-FHI-aims code
+#### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims 
 
 import numpy as np
 from PhononModulesNomad import *
@@ -76,13 +76,13 @@ skBand = Parse.openSection("section_k_band")
 for i in range(len(freqs)):
     freq = np.expand_dims(freqs[i], axis = 0)
     skSegment = Parse.openSection("section_k_band_segment")
-    Parse.addArrayValues(freq, skSegment)
+    Parse.addArrayValues("band_energies", freq)
     Parse.close("section_k_band_segment", skSegmment)
     skPoints = Parse.openSection("section_k_band_segment")
-    Parse.addArrayValues(bands, skPoints)
+    Parse.addArrayValues("band_k_points", bands[i])
     Parse.close("section_k_band_segment", skPoints)
     skLabels = Parse.openSection("section_k_band_segment")
-    Parse.addArrayValues(bands_labels[i], skLabels)
+    Parse.addArrayValues("band_segm_labels", bands_labels[i])
     Parse.close("section_k_band_segment", skLabels)
 Parse.close("section_k_band", skBand)
 ####
@@ -107,8 +107,8 @@ f = eVtoJoules(f)
 
 #### Parsing dos
 sDos = Parse.openSection("section_dos")
-Parse.addArray(dos, sDos)
-Parse.addArray(f, sDos)
+Parse.addArray("dos_values", dos)
+Parse.addArray("dos_energies", f)
 Parse.close("section_dos", sDos)
 ####
 

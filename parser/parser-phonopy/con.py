@@ -1,3 +1,5 @@
+#### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims
+
 import numpy as np
 from phonopy.units import VaspToTHz as AimsToTHz, VaspToCm as AimsToCm, VaspToEv as AimsToEv, THzToCm, THzToEv
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output

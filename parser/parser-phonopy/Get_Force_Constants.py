@@ -1,3 +1,5 @@
+#### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims
+
 import numpy as np
 from PhononModulesNomadpy import *
 from fnmatch import fnmatch
