@@ -147,63 +147,108 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         return set_of_forces, phonopy_obj
 
 
+class get_properties()
+    def __init__(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh):
+        
+        #### restoring units
+        convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
+        convert_angstrom = convert_unit_function('meter', 'angstrom')
+        hessian = convert_Phi(hessian)
+        cell = convert_angstrom(cell)
+        positions = convert_angstrom(positions)
+        displacement = convert_angstrom(displacement)
+        ####
+    
+        #### Constructing phonopy_obj
+        cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
+        scaled_positions = cell_obj.get_scaled_positions()
+        phonopy_obj = Phonopy(cell_obj, supercell_matrix, distance = displacement, symprec = sym)
+        phonopy_obj.set_force_constants(hessian)
+        ####
 
-def post_process_band(phonopy_obj, parameters, frequency_unit_factor, is_eigenvectors=False, write_yaml=False, do_matplotlib=False, lookup_labels=False):
-    bands = []
-    # Distances calculated in phonopy.band_structure.BandStructure object
-    # are based on absolute positions of q-points in reciprocal space
-    # as calculated by using the cell which is handed over during instantiation.
-    # Fooling that object by handing over a "unit cell" diag(1,1,1) instead clashes
-    # with calculation of non-analytical terms.
-    # Hence generate appropriate distances and special k-points list based on fractional
-    # coordinates in reciprocal space (to keep backwards compatibility with previous
-    # FHI-aims phonon implementation).
-    bands_distances = []
-    distance = 0.0
-    bands_special_points = [distance]
-    bands_labels = []
-    label = parameters[0]["startname"]
-    for b in parameters:
-        kstart = np.array(b["kstart"])
-        kend = np.array(b["kend"])
-        npoints = b["npoints"]
-        dk = (kend-kstart)/(npoints-1)
-        bands.append([(kstart + dk*n) for n in range(npoints)])
-        dk_length = np.linalg.norm(dk)
-        for n in range(npoints):
-            bands_distances.append(distance + dk_length*n)
-        distance += dk_length * (npoints-1)
-        bands_special_points.append(distance)
-        label = [b["startname"], b["endname"]]
-        if lookup_labels:
-            bands_labels.append(BandStructureLabels.get(label.lower(),label))
-        else:
-            bands_labels.append(label)
-    bs_obj = BandStructure(bands, 
-                           phonopy_obj.dynamical_matrix, 
-                           is_eigenvectors=is_eigenvectors,
-                           factor=frequency_unit_factor)        
-    freqs = bs_obj.get_frequencies()
-    return freqs, np.array(bands), np.array(bands_labels)
+        self.phonopy_obj = phonopy_obj
 
-def get_dos(phonopy_obj, mesh):
-        phonopy_obj.set_mesh(mesh, is_gamma_center=True)
-        q_points = phonopy_obj.get_mesh()[0]
-        phonopy_obj.set_qpoints_phonon(q_points, is_eigenvectors = False)
-        frequencies = phonopy_obj.get_qpoints_phonon()[0]
-        min_freq = min(np.ravel(frequencies))
-        max_freq = max(np.ravel(frequencies)) + max(np.ravel(frequencies))*0.05
-        phonopy_obj.set_total_DOS(freq_min= min_freq, freq_max = max_freq, tetrahedron_method = True)
-        f,dos = phonopy_obj.get_total_DOS()
-        return f, dos
+        #### choosing mesh
+        num_of_atoms = cell_obj.get_number_of_atoms()
+        mesh_density = 2*80**3/num_of_atoms
+        power_factor = float(1)/float(3)
+        mesh_number = np.round(mesh_density**power_factor)
+        logging.info('# proceding with a mesh of %d*%d*%d',mesh_number, mesh_number, mesh_number)
+        self.mesh = [mesh_number,mesh_number,mesh_number]
+        ####
 
-def get_thermal_properties(phonopy_obj, mesh):
-        #print ('#### NOT THE REAL UNITS')
-        phonopy_obj.set_mesh(mesh, is_gamma_center=True)
-        phonopy_obj.set_thermal_properties()
-        T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
-        kJmolToEv = 1.0 / EvTokJmol
-        fe = fe*kJmolToEv
-        JmolToEv = kJmolToEv / 1000
-        cv = JmolToEv*cv
-        return T, fe, entropy, cv
+        #### setting parameters
+        self.parameters = generate_kPath_ase(cell)
+
+
+        
+    def post_process_band(self, frequency_unit_factor, parameters = None, is_eigenvectors=False, lookup_labels=False):
+
+        phonopy_obj = self.phonopy_obj
+        if parameters == None:
+            parameters = self.parameters
+        bands = []
+        # Distances calculated in phonopy.band_structure.BandStructure object
+        # are based on absolute positions of q-points in reciprocal space
+        # as calculated by using the cell which is handed over during instantiation.
+        # Fooling that object by handing over a "unit cell" diag(1,1,1) instead clashes
+        # with calculation of non-analytical terms.
+        # Hence generate appropriate distances and special k-points list based on fractional
+        # coordinates in reciprocal space (to keep backwards compatibility with previous
+        # FHI-aims phonon implementation).
+        bands_distances = []
+        distance = 0.0
+        bands_special_points = [distance]
+        bands_labels = []
+        label = parameters[0]["startname"]
+        for b in parameters:
+            kstart = np.array(b["kstart"])
+            kend = np.array(b["kend"])
+            npoints = b["npoints"]
+            dk = (kend-kstart)/(npoints-1)
+            bands.append([(kstart + dk*n) for n in range(npoints)])
+            dk_length = np.linalg.norm(dk)
+            for n in range(npoints):
+                bands_distances.append(distance + dk_length*n)
+            distance += dk_length * (npoints-1)
+            bands_special_points.append(distance)
+            label = [b["startname"], b["endname"]]
+            if lookup_labels:
+                bands_labels.append(BandStructureLabels.get(label.lower(),label))
+            else:
+                bands_labels.append(label)
+        bs_obj = BandStructure(bands, 
+                               phonopy_obj.dynamical_matrix, 
+                               is_eigenvectors=is_eigenvectors,
+                               factor=frequency_unit_factor)        
+        freqs = bs_obj.get_frequencies()
+        return freqs, np.array(bands), np.array(bands_labels)
+
+    def get_dos(self, mesh = None):
+    
+            phonopy_obj = self.phonopy_obj
+            if mesh == None:
+                mesh = self.mesh
+            phonopy_obj.set_mesh(mesh, is_gamma_center=True)
+            q_points = phonopy_obj.get_mesh()[0]
+            phonopy_obj.set_qpoints_phonon(q_points, is_eigenvectors = False)
+            frequencies = phonopy_obj.get_qpoints_phonon()[0]
+            min_freq = min(np.ravel(frequencies))
+            max_freq = max(np.ravel(frequencies)) + max(np.ravel(frequencies))*0.05
+            phonopy_obj.set_total_DOS(freq_min= min_freq, freq_max = max_freq, tetrahedron_method = True)
+            f,dos = phonopy_obj.get_total_DOS()
+            return f, dos
+
+    def get_thermal_properties(self, mesh = None):
+        
+            phonopy_obj = self.phonopy_obj
+            if mesh == None:
+                mesh = self.mesh
+            phonopy_obj.set_mesh(mesh, is_gamma_center=True)
+            phonopy_obj.set_thermal_properties()
+            T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
+            kJmolToEv = 1.0 / EvTokJmol
+            fe = fe*kJmolToEv
+            JmolToEv = kJmolToEv / 1000
+            cv = JmolToEv*cv
+            return T, fe, entropy, cv

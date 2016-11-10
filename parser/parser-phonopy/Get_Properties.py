@@ -39,25 +39,10 @@ displacement = data[5]['value']
 sym = data[6]['value']
 ####
 
-#### Restoring units
-convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
-convert_angstrom = convert_unit_function('meter', 'angstrom')
-Phi = convert_Phi(Phi)
-cell = convert_angstrom(cell)
-positions = convert_angstrom(positions)
-displacement = convert_angstrom(displacement)
-####
-
-#### Constructing phonopy_obj
-cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
-scaled_positions = cell_obj.get_scaled_positions()
-phonopy_obj = Phonopy(cell_obj, supercell_matrix, distance = displacement, symprec = sym)
-phonopy_obj.set_force_constants(Phi)
-####
 
 #### Determening paths in reciprocal space
-parameters = generate_kPath_ase(cell)
-freqs, bands, bands_labels = post_process_band(phonopy_obj, parameters, VaspToTHz)
+get_properties = get_properties(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh)
+freqs, bands, bands_labels = get_properties.post_process_band(VaspToTHz)
 ####
 
 #### converting THz to eV
@@ -76,26 +61,16 @@ sRun = Parse.openSection("section_run")
 skBand = Parse.openSection("section_k_band")
 for i in range(len(freqs)):
     freq = np.expand_dims(freqs[i], axis = 0)
-    skSegment = Parse.openSection("section_k_band_segment")
+    skBands = Parse.openSection("section_k_band_segment")
     Parse.addArrayValues("band_energies", freq)
-    Parse.close("section_k_band_segment", skSegmment)
-    skPoints = Parse.openSection("section_k_band_segment")
     Parse.addArrayValues("band_k_points", bands[i])
-    Parse.close("section_k_band_segment", skPoints)
-    skLabels = Parse.openSection("section_k_band_segment")
     Parse.addArrayValues("band_segm_labels", bands_labels[i])
-    Parse.close("section_k_band_segment", skLabels)
+    Parse.close("section_k_band_segment", skBands)
 Parse.close("section_k_band", skBand)
 ####
 
 #### Determening DOS
-num_of_atoms = cell_obj.get_number_of_atoms()
-mesh_density = 2*80**3/num_of_atoms
-power_factor = float(1)/float(3)
-mesh_number = np.round(mesh_density**power_factor)
-logging.info('# proceding with a mesh of %d*%d*%d',mesh_number, mesh_number, mesh_number)
-mesh = [mesh_number,mesh_number,mesh_number]
-f, dos = get_dos(phonopy_obj, mesh)
+f, dos = get_properties.get_dos(phonopy_obj, mesh)
 ####
 
 #### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
@@ -114,7 +89,12 @@ Parse.close("section_dos", sDos)
 ####
 
 #### Determening Thermal properties
-T, fe, entropy, cv = get_thermal_properties(phonopy_obj, mesh)
+T, fe, entropy, cv = get_properties.get_thermal_properties()
+####
+
+#### Parsing 
+sTD = Parse.openSection("section_thermodynamical_properties")
+
 ####
 
 Parse.close("section_run", sRun)
