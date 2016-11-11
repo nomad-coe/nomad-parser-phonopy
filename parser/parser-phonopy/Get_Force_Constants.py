@@ -35,6 +35,7 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
 def parse(name):
     Parse = JsonParseEventsWriterBackend(metaInfoEnv)
     Parse.startedParsingSession(name, parser_info)
+    sRun = Parse.openSection("section_run")
     Basesystem = Parse.openSection("section_system")
     Parse.addArrayValues("atom_labels", symbols)
     Parse.addArrayValues("atom_positions", positions)
@@ -54,6 +55,7 @@ def parse(name):
     results = Parse.openSection("section_single_configuration_calculation")
     Parse.addArrayValues("hessian_matrix", FC2)
     Parse.closeSection("section_single_configuration_calculation", results)
+    Parse.closeSection("section_run", sRun)
     Parse.finishedParsingSession("ParseSuccess", None)
 
 #### determening properties of the undisplaced cell
