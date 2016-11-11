@@ -60,6 +60,7 @@ if __name__ == "main":
     Parse = JsonParseEventsWriterBackend(metaInfoEnv)
     Parse.startedParsingSession(name, parser_info)
     sRun = Parse.openSection("section_run")
+    sSingleConf = Parse.openSection("section_single_configuration_calculation")
     skBand = Parse.openSection("section_k_band")
     for i in range(len(freqs)):
         freq = np.expand_dims(freqs[i], axis = 0)
@@ -93,13 +94,22 @@ if __name__ == "main":
     #### Determening Thermal properties
     T, fe, entropy, cv = get_properties.get_thermal_properties()
     ####
+    frameSeq = Parse.openSection("section_frame_sequence")
+    Parse.addValue("frame_sequence_local_frames_ref", [sSingleConf])
     sHarmonic = Parse.openSection("thermodynamical_properties_calculation_method")
     #### Parsing 
     sTD = Parse.openSection("section_thermodynamical_properties")
     Parse.addArrayValues("thermodynamical_property_temperature", T)
     Parse.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
     Parse.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
+    sSamplingM = Parse.openSection("section_sampling_method")
+    Parse.addValue("sampling_method", "taylor_expansion")
+    Parse.addValue("sampling_method_expansion_order", 2)
+    Parse.addValue("frame_sequence_to_sampling_ref", sSamplingM)
+    Parse.close("section_sampling_method", sSamplingM)
     ####
     Parse.close("thermodynamical_properties_calculation_method", sHarmonic)
+    Parse.closeSection("section_frame_sequence",frameSeq)
+    Parse.closeSection("section_single_configuration_calculation", sSingleConf)
     Parse.close("section_run", sRun)
     Parse.finishedParsingSession("ParseSuccess", None)
