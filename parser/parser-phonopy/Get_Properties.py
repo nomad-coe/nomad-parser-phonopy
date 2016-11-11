@@ -26,75 +26,80 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
                                   dependencyLoader=None,
                                   extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
                                   uri=None)
+if __name__ == "main":
+    import sys
+    name = sys.argv[1]
+    #### Reading basic properties from JSON
+    with open(name) as FORCES:
+            data = json.load(FORCES)
+    hessian= np.array(data["sections"]["section_single_configuration_calculation-0"]["hessian_matrix"])
+    SC_matrix = np.array(data["sections"]["section_system-1"]["SC_matrix"])
+    cell = np.array(data["sections"]["section_system-0"]["simulation_cell"])
+    symbols = np.array(data["sections"]["section_system-0"]["atom_labels"])
+    positions = np.array(data["sections"]["section_system-0"]["atom_positions"])
+    displacement = np.array(data["sections"]["section_method-0"]["x_phonopy_displacement"])
+    symmetry_thresh = np.array(data["sections"]["section_method-0"]["x_phonopy_symprec"])
+    ####
 
-#### Reading basic properties from JSON
-with open('TEST.json') as TEST:
-	data = json.load(TEST)
-Phi= np.array(data[0]['flatValues']).reshape(data[0]['valuesShape'])
-supercell_matrix = np.array(data[1]['flatValues']).reshape(data[1]['valuesShape'])
-cell = np.array(data[2]['flatValues']).reshape(data[2]['valuesShape'])
-symbols = np.array(data[3]['flatValues']).reshape(data[3]['valuesShape']) #strictly speaking not necessary to reshape
-positions = np.array(data[4]['flatValues']).reshape(data[4]['valuesShape'])
-displacement = data[5]['value']
-sym = data[6]['value']
-####
 
+    #### Determening paths in reciprocal space
+    get_properties = get_properties(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh)
+    freqs, bands, bands_labels = get_properties.post_process_band(VaspToTHz)
+    ####
 
-#### Determening paths in reciprocal space
-get_properties = get_properties(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh)
-freqs, bands, bands_labels = get_properties.post_process_band(VaspToTHz)
-####
+    #### converting THz to eV
+    freqs = freqs*THzToEv
+    ####
 
-#### converting THz to eV
-freqs = freqs*THzToEv
-####
+    #### converting eV to Joules
+    eVtoJoules = convert_unit_function('eV', 'joules')
+    freqs = eVtoJoules(freqs)
+    ####
 
-#### converting eV to Joules
-eVtoJoules = convert_unit_function('eV', 'joules')
-freqs = eVtoJoules(freqs)
-####
+    #### Parsing frequencies
+    Parse = JsonParseEventsWriterBackend(metaInfoEnv)
+    Parse.startedParsingSession(name, parser_info)
+    sRun = Parse.openSection("section_run")
+    skBand = Parse.openSection("section_k_band")
+    for i in range(len(freqs)):
+        freq = np.expand_dims(freqs[i], axis = 0)
+        skBands = Parse.openSection("section_k_band_segment")
+        Parse.addArrayValues("band_energies", freq)
+        Parse.addArrayValues("band_k_points", bands[i])
+        Parse.addArrayValues("band_segm_labels", bands_labels[i])
+        Parse.close("section_k_band_segment", skBands)
+    Parse.close("section_k_band", skBand)
+    ####
 
-#### Parsing frequencies
-Parse = JsonParseEventsWriterBackend(metaInfoEnv)
-Parse.startedParsingSession(name, parser_info)
-sRun = Parse.openSection("section_run")
-skBand = Parse.openSection("section_k_band")
-for i in range(len(freqs)):
-    freq = np.expand_dims(freqs[i], axis = 0)
-    skBands = Parse.openSection("section_k_band_segment")
-    Parse.addArrayValues("band_energies", freq)
-    Parse.addArrayValues("band_k_points", bands[i])
-    Parse.addArrayValues("band_segm_labels", bands_labels[i])
-    Parse.close("section_k_band_segment", skBands)
-Parse.close("section_k_band", skBand)
-####
+    #### Determening DOS
+    f, dos = get_properties.get_dos(phonopy_obj, mesh)
+    ####
 
-#### Determening DOS
-f, dos = get_properties.get_dos(phonopy_obj, mesh)
-####
+    #### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
+    dos = np.expand_dims(dos, axis = 0)
+    ####
 
-#### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
-dos = np.expand_dims(dos, axis = 0)
-####
+    #### converting eV to Joules
+    f = eVtoJoules(f)
+    ####
 
-#### converting eV to Joules
-f = eVtoJoules(f)
-####
+    #### Parsing dos
+    sDos = Parse.openSection("section_dos")
+    Parse.addArray("dos_values", dos)
+    Parse.addArray("dos_energies", f)
+    Parse.close("section_dos", sDos)
+    ####
 
-#### Parsing dos
-sDos = Parse.openSection("section_dos")
-Parse.addArray("dos_values", dos)
-Parse.addArray("dos_energies", f)
-Parse.close("section_dos", sDos)
-####
-
-#### Determening Thermal properties
-T, fe, entropy, cv = get_properties.get_thermal_properties()
-####
-
-#### Parsing 
-sTD = Parse.openSection("section_thermodynamical_properties")
-
-####
-
-Parse.close("section_run", sRun)
+    #### Determening Thermal properties
+    T, fe, entropy, cv = get_properties.get_thermal_properties()
+    ####
+    sHarmonic = Parse.openSection("thermodynamical_properties_calculation_method")
+    #### Parsing 
+    sTD = Parse.openSection("section_thermodynamical_properties")
+    Parse.addArrayValues("thermodynamical_property_temperature", T)
+    Parse.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
+    Parse.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
+    ####
+    Parse.close("thermodynamical_properties_calculation_method", sHarmonic)
+    Parse.close("section_run", sRun)
+    Parse.finishedParsingSession("ParseSuccess", None)
