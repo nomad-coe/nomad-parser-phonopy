@@ -239,13 +239,19 @@ class get_properties()
             f,dos = phonopy_obj.get_total_DOS()
             return f, dos
 
-    def get_thermal_properties(self, mesh = None):
+    def get_thermal_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
         
             phonopy_obj = self.phonopy_obj
+            if t_max == None:
+                t_max = 1000
+            if t_min == None:
+                t_min = 0
+            if t_step = None:
+                t_step = 10
             if mesh == None:
                 mesh = self.mesh
             phonopy_obj.set_mesh(mesh, is_gamma_center=True)
-            phonopy_obj.set_thermal_properties()
+            phonopy_obj.set_thermal_properties(t_step = t_step, t_max = t_max, t_min = t_min)
             T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
             kJmolToEv = 1.0 / EvTokJmol
             fe = fe*kJmolToEv
