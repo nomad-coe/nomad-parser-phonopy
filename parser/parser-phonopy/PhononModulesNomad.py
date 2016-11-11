@@ -265,7 +265,7 @@ class get_properties()
             cv = JmolToEv*cv
             return T, fe, entropy, cv
     
-    def prep_bands(self, frequency_unit_factor, parameters = None):
+    def prep_bands(self, parameters = None):
 
         name = self.name
         metaInfoEnv = self.metaInfoEnv
@@ -350,7 +350,7 @@ class get_properties()
         Parse.closeSection("section_frame_sequence",frameSeq)
 
 
-    def omit_properties(self, frequency_unit_factor, omit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
+    def omit_properties(self, omit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
         
         #### omit has to be either "bands", "dos", or "thermodynamical_properties" default is all of them
          
@@ -363,7 +363,7 @@ class get_properties()
         sSingleConf = Parse.openSection("section_single_configuration_calculation")
         for get in omit:
             if get == "bands":
-                self.prep_bands(frequency_unit_factor, parameters = parameters)
+                self.prep_bands(VaspToTHz, parameters = parameters)
             if get == "dos"
                 self.prep_density_of_states(mesh = mesh)
             if get == "thermodynamical_properties":

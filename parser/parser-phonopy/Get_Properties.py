@@ -44,4 +44,4 @@ if __name__ == "main":
 
     #### omitting
     get_properties = get_properties(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, file_name, metaInfoEnv, parser_info)
-    
+    get_properties.omit_properties(frequency_unit_factor)
