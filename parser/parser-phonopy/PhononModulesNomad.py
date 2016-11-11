@@ -148,7 +148,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
 
 
 class get_properties()
-    def __init__(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh):
+    def __init__(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, name, metaInfoEnv, parser_info):
         
         #### restoring units
         convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
@@ -179,6 +179,12 @@ class get_properties()
 
         #### setting parameters
         self.parameters = generate_kPath_ase(cell)
+        ####
+        
+        #### name of the file where the properties are to be stored in 
+        self.name = name
+        self.metaInfoEnv = metaInfoEnv
+        self.parser_info = parser_info
 
 
         
@@ -258,3 +264,112 @@ class get_properties()
             JmolToEv = kJmolToEv / 1000
             cv = JmolToEv*cv
             return T, fe, entropy, cv
+    
+    def prep_bands(self, frequency_unit_factor, parameters = None):
+
+        name = self.name
+        metaInfoEnv = self.metaInfoEnv
+        parser_info = self.parser_info
+
+        freqs, bands, bands_labels = self.post_process_band(VaspToTHz)
+        
+        #### converting THz to eV
+        freqs = freqs*THzToEv
+        ####
+
+        #### converting eV to Joules
+        eVtoJoules = convert_unit_function('eV', 'joules')
+        freqs = eVtoJoules(freqs)
+        ####
+
+        #### omitting frequencies
+        skBand = Parse.openSection("section_k_band")
+        for i in range(len(freqs)):
+            freq = np.expand_dims(freqs[i], axis = 0)
+            skBands = Parse.openSection("section_k_band_segment")
+            Parse.addArrayValues("band_energies", freq)
+            Parse.addArrayValues("band_k_points", bands[i])
+            Parse.addArrayValues("band_segm_labels", bands_labels[i])
+            Parse.close("section_k_band_segment", skBands)
+        Parse.close("section_k_band", skBand)
+        ####
+        
+    def prep_density_of_states(self, mesh = None):
+        
+        name = self.name
+        metaInfoEnv = self.metaInfoEnv
+        parser_info = self.parser_info
+
+        #### Determening DOS
+        f, dos = self.get_dos(mesh)
+        ####
+
+        #### To match the shape given in metha data another dimension is added to the array (spin degress of fredom is 1)
+        dos = np.expand_dims(dos, axis = 0)
+        ####
+
+        #### converting THz to eV to Joules
+        eVtoJoules = convert_unit_function('eV', 'joules')
+        f = f*THzToEv
+        f = eVtoJoules(f)
+        ####
+
+        #### omitting density of states
+        sDos = Parse.openSection("section_dos")
+        Parse.addArray("dos_values", dos)
+        Parse.addArray("dos_energies", f)
+        Parse.close("section_dos", sDos)
+        ####
+
+    def prep_thermodynamical_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
+        
+        name = self.name
+        metaInfoEnv = self.metaInfoEnv
+        parser_info = self.parser_info
+        T, fe, entropy, cv = self.get_thermal_properties(mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
+
+        #### converting units
+        eVtoJoules = convert_unit_function('eV', 'joules')
+        eVperKtoJoules = convert_unit_function('eV*K**-1', 'joules*K**-1')
+        fe = eVtoJoules(fe)
+        cv = eVperKtoJoules(cv)
+        ####
+        
+        #### omitting
+        frameSeq = Parse.openSection("section_frame_sequence")
+        Parse.addValue("frame_sequence_local_frames_ref", [sSingleConf])
+        sTD = Parse.openSection("section_thermodynamical_properties")
+        Parse.addArrayValues("thermodynamical_property_temperature", T)
+        Parse.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
+        Parse.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
+        sSamplingM = Parse.openSection("section_sampling_method")
+        Parse.addValue("sampling_method", "taylor_expansion")
+        Parse.addValue("sampling_method_expansion_order", 2)
+        Parse.addValue("frame_sequence_to_sampling_ref", sSamplingM)
+        Parse.close("section_sampling_method", sSamplingM)
+        Parse.closeSection("section_frame_sequence",frameSeq)
+
+
+    def omit_properties(self, frequency_unit_factor, omit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
+        
+        #### omit has to be either "bands", "dos", or "thermodynamical_properties" default is all of them
+         
+        name = self.name
+        metaInfoEnv = self.metaInfoEnv
+        parser_info = self.parser_info
+        Parse = JsonParseEventsWriterBackend(metaInfoEnv)
+        Parse.startedParsingSession(name, parser_info)
+        sRun = Parse.openSection("section_run")
+        sSingleConf = Parse.openSection("section_single_configuration_calculation")
+        for get in omit:
+            if get == "bands":
+                self.prep_bands(frequency_unit_factor, parameters = parameters)
+            if get == "dos"
+                self.prep_density_of_states(mesh = mesh)
+            if get == "thermodynamical_properties":
+                self.prep_thermodynamical_properties(self, mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
+        Parse.closeSection("section_single_configuration_calculation", sSingleConf)
+        Parse.close("section_run", sRun)
+        Parse.finishedParsingSession("ParseSuccess", None)
+        
+        
