@@ -155,7 +155,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
 
 
 class get_properties():
-    def __init__(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, name, metaInfoEnv, parser_info):
+    def __init__(self, hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, name, metaInfoEnv, parser_info):
         
         #### restoring units
         convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
