@@ -62,6 +62,9 @@ def generate_kPath_ase(cell):
     k_points = [] 
     for p in paths:
         k_points.append([points[k] for k in p])
+        for index in range(len(p)):
+            if p[index] == 'G':
+                p[index] = 'Gamma'
     parameters = []
     for h, seg in enumerate(k_points):
         for i, path in enumerate(seg):
@@ -162,7 +165,7 @@ class get_properties()
         #### Constructing phonopy_obj
         cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
         scaled_positions = cell_obj.get_scaled_positions()
-        phonopy_obj = Phonopy(cell_obj, supercell_matrix, distance = displacement, symprec = sym)
+        phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
         phonopy_obj.set_force_constants(hessian)
         ####
 
@@ -245,7 +248,7 @@ class get_properties()
             f,dos = phonopy_obj.get_total_DOS()
             return f, dos
 
-    def get_thermal_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
+    def get_thermodynamical_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
         
             phonopy_obj = self.phonopy_obj
             if t_max == None:
@@ -267,9 +270,9 @@ class get_properties()
     
     def prep_bands(self, parameters = None):
 
-        name = self.name
-        metaInfoEnv = self.metaInfoEnv
-        parser_info = self.parser_info
+        #name = self.name
+        #metaInfoEnv = self.metaInfoEnv
+        #parser_info = self.parser_info
 
         freqs, bands, bands_labels = self.post_process_band(VaspToTHz)
         
@@ -296,9 +299,9 @@ class get_properties()
         
     def prep_density_of_states(self, mesh = None):
         
-        name = self.name
-        metaInfoEnv = self.metaInfoEnv
-        parser_info = self.parser_info
+        #name = self.name
+        #metaInfoEnv = self.metaInfoEnv
+        #parser_info = self.parser_info
 
         #### Determening DOS
         f, dos = self.get_dos(mesh)
@@ -323,10 +326,10 @@ class get_properties()
 
     def prep_thermodynamical_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
         
-        name = self.name
-        metaInfoEnv = self.metaInfoEnv
-        parser_info = self.parser_info
-        T, fe, entropy, cv = self.get_thermal_properties(mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
+        #name = self.name
+        #metaInfoEnv = self.metaInfoEnv
+        #parser_info = self.parser_info
+        T, fe, entropy, cv = self.get_thermodynamical_properties(mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
 
         #### converting units
         eVtoJoules = convert_unit_function('eV', 'joules')
