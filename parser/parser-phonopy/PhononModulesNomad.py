@@ -150,7 +150,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         return set_of_forces, phonopy_obj
 
 
-class get_properties()
+class get_properties():
     def __init__(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, name, metaInfoEnv, parser_info):
         
         #### restoring units
