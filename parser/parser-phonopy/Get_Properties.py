@@ -16,6 +16,8 @@ from phonopy.harmonic.force_constants import get_force_constants
 from phonopy.units import *
 from phonopy.structure.atoms import Atoms
 from nomadcore.unit_conversion.unit_conversion import convert_unit_function
+from nomadcore.parser_backend import *
+from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
 parser_info = {"name": "parser_phonopy", "version": "0.1"}
 
