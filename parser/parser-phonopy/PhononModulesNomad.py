@@ -17,6 +17,10 @@ from phonopy.file_IO import write_FORCE_CONSTANTS
 from phonopy.harmonic.forces import Forces
 from phonopy.harmonic.force_constants import get_force_constants
 from phonopy.phonon.band_structure import BandStructure
+#from nomadcore.unit_conversion.unit_conversion import convert_unit_function
+#from nomadcore.parser_backend import *
+#from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
+
 AimsFrequencyUnitFactors = { 'cm^-1' : VaspToCm, 'THz' : VaspToTHz, 'meV' : 1E3*VaspToEv }
 def get_pretty_print(json_object):
     return json.dumps(json_object, sort_keys=True, indent=4, separators=('"', '\n'))
@@ -255,7 +259,7 @@ class get_properties():
                 t_max = 1000
             if t_min == None:
                 t_min = 0
-            if t_step = None:
+            if t_step == None:
                 t_step = 10
             if mesh == None:
                 mesh = self.mesh
@@ -367,7 +371,7 @@ class get_properties():
         for get in omit:
             if get == "bands":
                 self.prep_bands(VaspToTHz, parameters = parameters)
-            if get == "dos"
+            if get == "dos":
                 self.prep_density_of_states(mesh = mesh)
             if get == "thermodynamical_properties":
                 self.prep_thermodynamical_properties(self, mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
