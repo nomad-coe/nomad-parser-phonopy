@@ -155,7 +155,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
 
 
 class get_properties():
-    def __init__(self, hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, name, metaInfoEnv, parser_info):
+    def __init__(self, hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, displacement, name, metaInfoEnv, parser_info):
         
         #### restoring units
         convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
@@ -297,11 +297,11 @@ class get_properties():
             Parse.addArrayValues("band_energies", freq)
             Parse.addArrayValues("band_k_points", bands[i])
             Parse.addArrayValues("band_segm_labels", bands_labels[i])
-            Parse.close("section_k_band_segment", skBands)
-        Parse.close("section_k_band", skBand)
+            Parse.closeSection("section_k_band_segment", skBands)
+        Parse.closeSection("section_k_band", skBand)
         ####
         
-    def prep_density_of_states(self, mesh = None):
+    def prep_density_of_states(self, Parse, mesh = None):
         
         #name = self.name
         #metaInfoEnv = self.metaInfoEnv
@@ -325,10 +325,10 @@ class get_properties():
         sDos = Parse.openSection("section_dos")
         Parse.addArray("dos_values", dos)
         Parse.addArray("dos_energies", f)
-        Parse.close("section_dos", sDos)
+        Parse.closeSection("section_dos", sDos)
         ####
 
-    def prep_thermodynamical_properties(self, mesh = None, t_max = None, t_min = None, t_step = None):
+    def prep_thermodynamical_properties(self, Parse, sSingleConf, mesh = None, t_max = None, t_min = None, t_step = None):
         
         #name = self.name
         #metaInfoEnv = self.metaInfoEnv
@@ -353,7 +353,7 @@ class get_properties():
         Parse.addValue("sampling_method", "taylor_expansion")
         Parse.addValue("sampling_method_expansion_order", 2)
         Parse.addValue("frame_sequence_to_sampling_ref", sSamplingM)
-        Parse.close("section_sampling_method", sSamplingM)
+        Parse.closeSection("section_sampling_method", sSamplingM)
         Parse.closeSection("section_frame_sequence",frameSeq)
 
 
@@ -370,13 +370,13 @@ class get_properties():
         sSingleConf = Parse.openSection("section_single_configuration_calculation")
         for get in omit:
             if get == "bands":
-                self.prep_bands(VaspToTHz, parameters = parameters)
+                self.prep_bands(Parse, parameters)
             if get == "dos":
-                self.prep_density_of_states(mesh = mesh)
+                self.prep_density_of_states(Parse, mesh)
             if get == "thermodynamical_properties":
-                self.prep_thermodynamical_properties(self, mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
+                self.prep_thermodynamical_properties(Parse, sSingleConf, mesh, t_max, t_min, t_step)
         Parse.closeSection("section_single_configuration_calculation", sSingleConf)
-        Parse.close("section_run", sRun)
+        Parse.closeSection("section_run", sRun)
         Parse.finishedParsingSession("ParseSuccess", None)
         
         
