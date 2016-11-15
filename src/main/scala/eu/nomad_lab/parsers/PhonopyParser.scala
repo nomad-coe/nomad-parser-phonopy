@@ -19,6 +19,7 @@ object PhonopyParser extends SimpleExternalParserGenerator(
       )) :: Nil
   ),
   mainFileTypes = Seq("text/plain"),
+  ancillaryFilesPrefilter = AncillaryFilesPrefilter.ParentSubtree,
   mainFileRe = "".r,
   cmd = Seq(lab.DefaultPythonInterpreter.pythonExe(), "${envDir}/parsers/phonopy/parser/parser-phonopy/Get_Force_Constants.py", "${mainFileUri}", "${mainFilePath}"),
   resList = Seq(
