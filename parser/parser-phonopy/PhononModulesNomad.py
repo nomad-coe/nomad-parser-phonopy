@@ -235,7 +235,7 @@ class get_properties():
                                is_eigenvectors=is_eigenvectors,
                                factor=frequency_unit_factor)        
         freqs = bs_obj.get_frequencies()
-        return freqs, np.array(bands), np.array(bands_labels)
+        return np.array(freqs), np.array(bands), np.array(bands_labels)
 
     def get_dos(self, mesh = None):
     
@@ -323,8 +323,8 @@ class get_properties():
 
         #### omitting density of states
         sDos = Parse.openSection("section_dos")
-        Parse.addArray("dos_values", dos)
-        Parse.addArray("dos_energies", f)
+        Parse.addArrayValues("dos_values", dos)
+        Parse.addArrayValues("dos_energies", f)
         Parse.closeSection("section_dos", sDos)
         ####
 
