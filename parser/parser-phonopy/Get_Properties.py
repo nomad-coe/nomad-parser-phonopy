@@ -28,7 +28,7 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
                                   dependencyLoader=None,
                                   extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
                                   uri=None)
-if __name__ == "main":
+if __name__ == "__main__":
     import sys
     name = sys.argv[1]
     #### Reading basic properties from JSON

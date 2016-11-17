@@ -54,7 +54,10 @@ def parse(name):
     Parse.closeSection("section_method", method)
     results = Parse.openSection("section_single_configuration_calculation")
     Parse.addArrayValues("hessian_matrix", FC2)
+    GP = Get_Properties(FC2, cell, positions, symbols, supercell_matrix, sym, displacement)
+    GP.prem_emit(Parse, results)
     Parse.closeSection("section_single_configuration_calculation", results)
+    GP.prep_ref(Whole_Path, Parse)
     Parse.closeSection("section_run", sRun)
     Parse.finishedParsingSession("ParseSuccess", None)
 

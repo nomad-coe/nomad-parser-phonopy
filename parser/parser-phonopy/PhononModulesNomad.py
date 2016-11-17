@@ -3,12 +3,14 @@
 import numpy as np
 import past
 import math
-import os
+import os, logging
 import json
+import setup_paths
 from fnmatch import fnmatch
 from ase.geometry import cell_to_cellpar, crystal_structure_from_cell
 from ase.dft.kpoints import special_paths, special_points, parse_path_string
 from phonopy.units import *
+from phonopy.structure.atoms import Atoms
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
 from phonopy import Phonopy
@@ -17,9 +19,9 @@ from phonopy.file_IO import write_FORCE_CONSTANTS
 from phonopy.harmonic.forces import Forces
 from phonopy.harmonic.force_constants import get_force_constants
 from phonopy.phonon.band_structure import BandStructure
-#from nomadcore.unit_conversion.unit_conversion import convert_unit_function
-#from nomadcore.parser_backend import *
-#from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
+from nomadcore.unit_conversion.unit_conversion import convert_unit_function
+from nomadcore.parser_backend import *
+from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
 AimsFrequencyUnitFactors = { 'cm^-1' : VaspToCm, 'THz' : VaspToTHz, 'meV' : 1E3*VaspToEv }
 def get_pretty_print(json_object):
@@ -168,36 +170,32 @@ class Get_Properties():
                 name = None, 
                 metaInfoEnv = None, 
                 parser_info = None,
-                mode = "seperate",
-                phonopy_obj = None):
-        if mode == "seperate":
-            #### restoring units
-            convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
-            convert_angstrom = convert_unit_function('meter', 'angstrom')
-            hessian = convert_Phi(hessian)
-            cell = convert_angstrom(cell)
-            positions = convert_angstrom(positions)
-            displacement = convert_angstrom(displacement)
-            ####
+                ):
         
-            #### Constructing phonopy_obj
-            cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
-            scaled_positions = cell_obj.get_scaled_positions()
-            phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
-            phonopy_obj.set_force_constants(hessian)
-            ####
-
-            self.phonopy_obj = phonopy_obj
-
-            #### name of the file where the properties are to be stored in 
-            self.name = name
-            self.metaInfoEnv = metaInfoEnv
-            self.parser_info = parser_info
-
-        elif mode == "direct":
-
-            self.phonopy_obj = phonopy_obj
+        #### restoring units
+        convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
+        convert_angstrom = convert_unit_function('meter', 'angstrom')
+        hessian = convert_Phi(hessian)
+        cell = convert_angstrom(cell)
+        positions = convert_angstrom(positions)
+        displacement = convert_angstrom(displacement)
+        ####
     
+        #### Constructing phonopy_obj
+        cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
+        scaled_positions = cell_obj.get_scaled_positions()
+        phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
+        phonopy_obj.set_force_constants(hessian)
+        ####
+
+        self.phonopy_obj = phonopy_obj
+
+        #### name of the file where the properties are to be stored in 
+        self.name = name
+        self.metaInfoEnv = metaInfoEnv
+        self.parser_info = parser_info
+
+        
         #### choosing mesh
         num_of_atoms = cell_obj.get_number_of_atoms()
         mesh_density = 2*80**3/num_of_atoms
@@ -292,7 +290,7 @@ class Get_Properties():
             cv = JmolToEv*cv
             return T, fe, entropy, cv
     
-    def prep_bands(self, parameters = None):
+    def prep_bands(self, Emit, parameters = None):
 
         #name = self.name
         #metaInfoEnv = self.metaInfoEnv
@@ -364,7 +362,7 @@ class Get_Properties():
         
         #### emitting
         frameSeq = Emit.openSection("section_frame_sequence")
-        Emit.addValue("frame_sequence_local_frames_ref", [sSingleConf])
+        Emit.addArrayValues("frame_sequence_local_frames_ref", np.array([sSingleConf]))
         sTD = Emit.openSection("section_thermodynamical_properties")
         Emit.addArrayValues("thermodynamical_property_temperature", T)
         Emit.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
@@ -376,6 +374,11 @@ class Get_Properties():
         Emit.closeSection("section_sampling_method", sSamplingM)
         Emit.closeSection("section_frame_sequence",frameSeq)
 
+    def prep_ref(self, ref_list, Emit):
+        for ref in ref_list:
+            sCalc = Emit.openSection("section_calculation_to_calculation_refs")
+            Emit.addValue("calculation_to_calculation_external_url", ref)
+            Emit.closeSection("section_calculation_to_calculation_refs", sCalc)
 
     def emit_properties(self, emit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
         
@@ -398,5 +401,23 @@ class Get_Properties():
         Emit.closeSection("section_single_configuration_calculation", sSingleConf)
         Emit.closeSection("section_run", sRun)
         Emit.finishedParsingSession("ParseSuccess", None)
+    
+    def prem_emit(self, 
+                Emit, 
+                sSingleConf, 
+                emit = ["bands", "dos", "thermodynamical_properties"], 
+                parameters = None, 
+                mesh = None, 
+                t_max = None, 
+                t_min = None, 
+                t_step = None):
+        
+        for get in emit:
+            if get == "bands":
+                self.prep_bands(Emit, parameters)
+            if get == "dos":
+                self.prep_density_of_states(Emit, mesh)
+            if get == "thermodynamical_properties":
+                self.prep_thermodynamical_properties(Emit, sSingleConf, mesh, t_max, t_min, t_step)
         
         
