@@ -154,27 +154,48 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         return set_of_forces, phonopy_obj
 
 
-class get_properties():
-    def __init__(self, hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, displacement, name, metaInfoEnv, parser_info):
+class Get_Properties():
+    def __init__(self, 
+                hessian = None, 
+                cell = None, 
+                positions = None, 
+                symbols = None, 
+                SC_matrix = None, 
+                symmetry_thresh = None, 
+                displacement = None, 
+                name = None, 
+                metaInfoEnv = None, 
+                parser_info = None,
+                mode = "seperate",
+                phonopy_obj = None):
+        if mode == "seperate":
+            #### restoring units
+            convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
+            convert_angstrom = convert_unit_function('meter', 'angstrom')
+            hessian = convert_Phi(hessian)
+            cell = convert_angstrom(cell)
+            positions = convert_angstrom(positions)
+            displacement = convert_angstrom(displacement)
+            ####
         
-        #### restoring units
-        convert_Phi = convert_unit_function('joules*meter**-2', 'eV*angstrom**-2')
-        convert_angstrom = convert_unit_function('meter', 'angstrom')
-        hessian = convert_Phi(hessian)
-        cell = convert_angstrom(cell)
-        positions = convert_angstrom(positions)
-        displacement = convert_angstrom(displacement)
-        ####
+            #### Constructing phonopy_obj
+            cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
+            scaled_positions = cell_obj.get_scaled_positions()
+            phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
+            phonopy_obj.set_force_constants(hessian)
+            ####
+
+            self.phonopy_obj = phonopy_obj
+
+            #### name of the file where the properties are to be stored in 
+            self.name = name
+            self.metaInfoEnv = metaInfoEnv
+            self.parser_info = parser_info
+
+        elif mode == "direct":
+
+            self.phonopy_obj = phonopy_obj
     
-        #### Constructing phonopy_obj
-        cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
-        scaled_positions = cell_obj.get_scaled_positions()
-        phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
-        phonopy_obj.set_force_constants(hessian)
-        ####
-
-        self.phonopy_obj = phonopy_obj
-
         #### choosing mesh
         num_of_atoms = cell_obj.get_number_of_atoms()
         mesh_density = 2*80**3/num_of_atoms
@@ -188,10 +209,7 @@ class get_properties():
         self.parameters = generate_kPath_ase(cell)
         ####
         
-        #### name of the file where the properties are to be stored in 
-        self.name = name
-        self.metaInfoEnv = metaInfoEnv
-        self.parser_info = parser_info
+
 
 
         
@@ -289,19 +307,19 @@ class get_properties():
         freqs = eVtoJoules(freqs)
         ####
 
-        #### omitting frequencies
-        skBand = Parse.openSection("section_k_band")
+        #### emitting frequencies
+        skBand = Emit.openSection("section_k_band")
         for i in range(len(freqs)):
             freq = np.expand_dims(freqs[i], axis = 0)
-            skBands = Parse.openSection("section_k_band_segment")
-            Parse.addArrayValues("band_energies", freq)
-            Parse.addArrayValues("band_k_points", bands[i])
-            Parse.addArrayValues("band_segm_labels", bands_labels[i])
-            Parse.closeSection("section_k_band_segment", skBands)
-        Parse.closeSection("section_k_band", skBand)
+            skBands = Emit.openSection("section_k_band_segment")
+            Emit.addArrayValues("band_energies", freq)
+            Emit.addArrayValues("band_k_points", bands[i])
+            Emit.addArrayValues("band_segm_labels", bands_labels[i])
+            Emit.closeSection("section_k_band_segment", skBands)
+        Emit.closeSection("section_k_band", skBand)
         ####
         
-    def prep_density_of_states(self, Parse, mesh = None):
+    def prep_density_of_states(self, Emit, mesh = None):
         
         #name = self.name
         #metaInfoEnv = self.metaInfoEnv
@@ -321,14 +339,14 @@ class get_properties():
         f = eVtoJoules(f)
         ####
 
-        #### omitting density of states
-        sDos = Parse.openSection("section_dos")
-        Parse.addArrayValues("dos_values", dos)
-        Parse.addArrayValues("dos_energies", f)
-        Parse.closeSection("section_dos", sDos)
+        #### emitting density of states
+        sDos = Emit.openSection("section_dos")
+        Emit.addArrayValues("dos_values", dos)
+        Emit.addArrayValues("dos_energies", f)
+        Emit.closeSection("section_dos", sDos)
         ####
 
-    def prep_thermodynamical_properties(self, Parse, sSingleConf, mesh = None, t_max = None, t_min = None, t_step = None):
+    def prep_thermodynamical_properties(self, Emit, sSingleConf, mesh = None, t_max = None, t_min = None, t_step = None):
         
         #name = self.name
         #metaInfoEnv = self.metaInfoEnv
@@ -342,41 +360,41 @@ class get_properties():
         cv = eVperKtoJoules(cv)
         ####
         
-        #### omitting
-        frameSeq = Parse.openSection("section_frame_sequence")
-        Parse.addValue("frame_sequence_local_frames_ref", [sSingleConf])
-        sTD = Parse.openSection("section_thermodynamical_properties")
-        Parse.addArrayValues("thermodynamical_property_temperature", T)
-        Parse.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
-        Parse.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
-        sSamplingM = Parse.openSection("section_sampling_method")
-        Parse.addValue("sampling_method", "taylor_expansion")
-        Parse.addValue("sampling_method_expansion_order", 2)
-        Parse.addValue("frame_sequence_to_sampling_ref", sSamplingM)
-        Parse.closeSection("section_sampling_method", sSamplingM)
-        Parse.closeSection("section_frame_sequence",frameSeq)
+        #### emitting
+        frameSeq = Emit.openSection("section_frame_sequence")
+        Emit.addValue("frame_sequence_local_frames_ref", [sSingleConf])
+        sTD = Emit.openSection("section_thermodynamical_properties")
+        Emit.addArrayValues("thermodynamical_property_temperature", T)
+        Emit.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
+        Emit.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
+        sSamplingM = Emit.openSection("section_sampling_method")
+        Emit.addValue("sampling_method", "taylor_expansion")
+        Emit.addValue("sampling_method_expansion_order", 2)
+        Emit.addValue("frame_sequence_to_sampling_ref", sSamplingM)
+        Emit.closeSection("section_sampling_method", sSamplingM)
+        Emit.closeSection("section_frame_sequence",frameSeq)
 
 
-    def omit_properties(self, omit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
+    def emit_properties(self, emit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
         
-        #### omit has to be either "bands", "dos", or "thermodynamical_properties" default is all of them
+        #### emit has to be either "bands", "dos", or "thermodynamical_properties" default is all of them
          
         name = self.name
         metaInfoEnv = self.metaInfoEnv
         parser_info = self.parser_info
-        Parse = JsonParseEventsWriterBackend(metaInfoEnv)
-        Parse.startedParsingSession(name, parser_info)
-        sRun = Parse.openSection("section_run")
-        sSingleConf = Parse.openSection("section_single_configuration_calculation")
-        for get in omit:
+        Emit = JsonParseEventsWriterBackend(metaInfoEnv)
+        Emit.startedParsingSession(name, parser_info)
+        sRun = Emit.openSection("section_run")
+        sSingleConf = Emit.openSection("section_single_configuration_calculation")
+        for get in emit:
             if get == "bands":
-                self.prep_bands(Parse, parameters)
+                self.prep_bands(Emit, parameters)
             if get == "dos":
-                self.prep_density_of_states(Parse, mesh)
+                self.prep_density_of_states(Emit, mesh)
             if get == "thermodynamical_properties":
-                self.prep_thermodynamical_properties(Parse, sSingleConf, mesh, t_max, t_min, t_step)
-        Parse.closeSection("section_single_configuration_calculation", sSingleConf)
-        Parse.closeSection("section_run", sRun)
-        Parse.finishedParsingSession("ParseSuccess", None)
+                self.prep_thermodynamical_properties(Emit, sSingleConf, mesh, t_max, t_min, t_step)
+        Emit.closeSection("section_single_configuration_calculation", sSingleConf)
+        Emit.closeSection("section_run", sRun)
+        Emit.finishedParsingSession("ParseSuccess", None)
         
         
