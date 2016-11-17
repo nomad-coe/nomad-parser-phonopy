@@ -89,7 +89,11 @@ if __name__ == '__main__':
     ####
 
     #### constructing FORCE_CONSTANTS
-    set_of_forces, phonopy_obj = Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym)
+    set_of_forces, phonopy_obj, Relative_Path = Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym)
+    Prep_Path = name.split("phonopy-FHI-aims-displacement-")
+    Whole_Path = []
+    for Path in Relative_Path:
+        Whole_Path.append("%s%s" % (Prep_Path[0], Path))
     phonopy_obj.set_forces(set_of_forces)
     phonopy_obj.produce_force_constants()
     FC2 = phonopy_obj.get_force_constants()

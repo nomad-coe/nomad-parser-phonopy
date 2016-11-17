@@ -108,6 +108,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         space_group = phonopy_obj.symmetry.get_international_table()
         #print (space_group)
         set_of_forces = []
+        Relative_Path = []
         for directory, supercell in zip(directories, supercells):
                 aims_out = os.path.join(directory, directory + ".out")
                 if not os.path.isfile(aims_out):
@@ -126,6 +127,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                         #print ("!!! No phonon calculations found")
                         sys.exit(1)
                     os.chdir("../")
+                Relative_Path.append(aims_out)
                 supercell_calculated = read_aims_output(aims_out)
                 if ( (supercell_calculated.get_number_of_atoms() == supercell.get_number_of_atoms()) and
                      (supercell_calculated.get_atomic_numbers() == supercell.get_atomic_numbers()).all() and
@@ -151,7 +153,7 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                 else:
                     #print ("!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
                     sys.exit(2)
-        return set_of_forces, phonopy_obj
+        return set_of_forces, phonopy_obj, Relative_Path
 
 
 class Get_Properties():
