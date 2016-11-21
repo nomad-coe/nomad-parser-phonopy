@@ -61,8 +61,12 @@ def Write_FORCE_CONSTANTS(phonopy_obj, set_of_forces):
 
 #### generate_kPath prepares the path genereated by ASE to be used with 
 #### the function post_process_band
-def generate_kPath_ase(cell):
-    lattice = crystal_structure_from_cell(cell) 
+def generate_kPath_ase(cell, symprec):
+    
+    eig_val_max = np.real(np.linalg.eigvals(cell)).max()
+    eps = eig_val_max*symprec
+
+    lattice = crystal_structure_from_cell(cell, eps) 
     paths = parse_path_string(special_paths[lattice])
     points = special_points[lattice]
     k_points = [] 
@@ -206,7 +210,7 @@ class Get_Properties():
         ####
 
         #### setting parameters
-        self.parameters = generate_kPath_ase(cell)
+        self.parameters = generate_kPath_ase(cell, symmetry_thresh)
         ####
         
 
