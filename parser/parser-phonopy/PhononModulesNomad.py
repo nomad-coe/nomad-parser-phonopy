@@ -375,6 +375,7 @@ class Get_Properties():
         Emit.addValue("sampling_method", "taylor_expansion")
         Emit.addValue("sampling_method_expansion_order", 2)
         Emit.addValue("frame_sequence_to_sampling_ref", sSamplingM)
+        Emit.closeSection("section_thermodynamical_properties", sTD)
         Emit.closeSection("section_sampling_method", sSamplingM)
         Emit.closeSection("section_frame_sequence",frameSeq)
 
