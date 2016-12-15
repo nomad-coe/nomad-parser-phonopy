@@ -49,7 +49,6 @@ def parse(name):
     Parse.addValue("x_phonopy_original_system_ref", Basesystem)
     Parse.closeSection("section_system", Supercellsystem)
     method = Parse.openSection("section_method")
-    Parse.addValue("calculation_method_kind", "phononic")
     Parse.addValue("x_phonopy_symprec", sym)
     Parse.addValue("x_phonopy_displacement", displacement)
     Parse.closeSection("section_method", method)

@@ -313,6 +313,7 @@ class Get_Properties():
 
         #### emitting frequencies
         skBand = Emit.openSection("section_k_band")
+        Emit.addValue("band_structure_kind", "vibrational")
         for i in range(len(freqs)):
             freq = np.expand_dims(freqs[i], axis = 0)
             skBands = Emit.openSection("section_k_band_segment")
@@ -345,6 +346,7 @@ class Get_Properties():
 
         #### emitting density of states
         sDos = Emit.openSection("section_dos")
+        Emit.addValue("dos_kind", "vibrational")
         Emit.addArrayValues("dos_values", dos)
         Emit.addArrayValues("dos_energies", f)
         Emit.closeSection("section_dos", sDos)
