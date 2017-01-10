@@ -10,7 +10,7 @@ import os
 import argparse
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
 from con import Control
-from phonopy import Phonopy
+from phonopy import Phonopy, __version__
 from phonopy.structure.symmetry import Symmetry
 from phonopy.file_IO import write_FORCE_CONSTANTS
 from phonopy.harmonic.forces import Forces
@@ -20,7 +20,7 @@ from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 from nomadcore.parser_backend import *
 from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
-
+phonopy_version = __version__
 parser_info = {"name": "parser_phonopy", "version": "1.0"}
 
 path = "../../../../nomad-meta-info/meta_info/nomad_meta_info/phonopy.nomadmetainfo.json"
@@ -38,7 +38,7 @@ def parse(name):
     Parse.startedParsingSession(name, parser_info)
     sRun = Parse.openSection("section_run")
     Parse.addValue("program_name", "Phonopy")
-    Parse.addValue("program_version", parser_info["version"])
+    Parse.addValue("program_version", phonopy_version)
     Basesystem = Parse.openSection("section_system")
     Parse.addArrayValues("configuration_periodic_dimensions", pbc)
     Parse.addArrayValues("atom_labels", symbols)
@@ -46,6 +46,9 @@ def parse(name):
     Parse.addArrayValues("simulation_cell", cell)
     Parse.closeSection("section_system", Basesystem)
     Supercellsystem = Parse.openSection("section_system")
+    sysrefs = Parse.openSection("section_system_to_system_refs")
+    Parse.addValue("system_to_system_kind", "Basesystem")
+    Parse.addValue("system_to_system_ref", Basesystem)
     Parse.addArrayValues("configuration_periodic_dimensions", pbc)
     Parse.addArrayValues("atom_labels", super_sym)
     Parse.addArrayValues("atom_positions", super_pos)
@@ -58,7 +61,7 @@ def parse(name):
     Parse.addValue("x_phonopy_displacement", displacement)
     Parse.closeSection("section_method", method)
     results = Parse.openSection("section_single_configuration_calculation")
-    Parse.addValue("single_configuration_calculation_to_system_ref", Basesystem)
+    Parse.addValue("single_configuration_calculation_to_system_ref", Supercellsystem)
     Parse.addValue("single_configuration_to_calculation_method_ref", method)
     Parse.addArrayValues("hessian_matrix", FC2)
     GP = Get_Properties(FC2, cell, positions, symbols, supercell_matrix, sym, displacement)
