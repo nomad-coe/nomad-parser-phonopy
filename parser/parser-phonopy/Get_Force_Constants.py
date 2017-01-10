@@ -1,4 +1,4 @@
-#### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims
+#### phonopy parser written by Hagen-Henrik Kowalski and based on the original work of Joerg Mayer on phonopy-FHI-aims
 
 import numpy as np
 from PhononModulesNomad import *
@@ -21,7 +21,7 @@ from nomadcore.parser_backend import *
 from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
 
-parser_info = {"name": "parser_phonopy", "version": "0.1"}
+parser_info = {"name": "parser_phonopy", "version": "1.0"}
 
 path = "../../../../nomad-meta-info/meta_info/nomad_meta_info/phonopy.nomadmetainfo.json"
 metaInfoPath = os.path.normpath(
@@ -33,15 +33,20 @@ metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
 
 
 def parse(name):
+    pbc = np.array((1, 1, 1), bool)
     Parse = JsonParseEventsWriterBackend(metaInfoEnv)
     Parse.startedParsingSession(name, parser_info)
     sRun = Parse.openSection("section_run")
+    Parse.addValue("program_name", "Phonopy")
+    Parse.addValue("program_version", parser_info["version"])
     Basesystem = Parse.openSection("section_system")
+    Parse.addArrayValues("configuration_periodic_dimensions", pbc)
     Parse.addArrayValues("atom_labels", symbols)
     Parse.addArrayValues("atom_positions", positions)
     Parse.addArrayValues("simulation_cell", cell)
     Parse.closeSection("section_system", Basesystem)
     Supercellsystem = Parse.openSection("section_system")
+    Parse.addArrayValues("configuration_periodic_dimensions", pbc)
     Parse.addArrayValues("atom_labels", super_sym)
     Parse.addArrayValues("atom_positions", super_pos)
     Parse.addArrayValues("simulation_cell", s_cell)
@@ -53,6 +58,8 @@ def parse(name):
     Parse.addValue("x_phonopy_displacement", displacement)
     Parse.closeSection("section_method", method)
     results = Parse.openSection("section_single_configuration_calculation")
+    Parse.addValue("single_configuration_calculation_to_system_ref", Basesystem)
+    Parse.addValue("single_configuration_to_calculation_method_ref", method)
     Parse.addArrayValues("hessian_matrix", FC2)
     GP = Get_Properties(FC2, cell, positions, symbols, supercell_matrix, sym, displacement)
     GP.prem_emit(Parse, results)

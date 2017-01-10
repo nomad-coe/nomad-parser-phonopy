@@ -1,4 +1,4 @@
-#### phonopy parser based on the original work of Joerg Mayer on phonopy-FHI-aims
+#### phonopy parser written by Hagen-Henrik Kowalski and based on the original work of Joerg Mayer on phonopy-FHI-aims 
 
 import numpy as np
 import past
@@ -212,6 +212,9 @@ class Get_Properties():
         #### setting parameters
         self.parameters = generate_kPath_ase(cell, symmetry_thresh)
         ####
+
+        #### getting number of atoms 
+        self.num_of_atoms = num_of_atoms
         
 
 
@@ -358,6 +361,10 @@ class Get_Properties():
         #metaInfoEnv = self.metaInfoEnv
         #parser_info = self.parser_info
         T, fe, entropy, cv = self.get_thermodynamical_properties(mesh = mesh, t_max = t_max, t_min = t_min, t_step = t_step)
+
+        #### deviding free energy by number of atoms to obtain free energy per atom
+        fe = fe/self.num_of_atoms
+        ####
 
         #### converting units
         eVtoJoules = convert_unit_function('eV', 'joules')
