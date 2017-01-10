@@ -47,7 +47,7 @@ def parse(name):
     Parse.closeSection("section_system", Basesystem)
     Supercellsystem = Parse.openSection("section_system")
     sysrefs = Parse.openSection("section_system_to_system_refs")
-    Parse.addValue("system_to_system_kind", "Basesystem")
+    Parse.addValue("system_to_system_kind", "subsystem")
     Parse.addValue("system_to_system_ref", Basesystem)
     Parse.addArrayValues("configuration_periodic_dimensions", pbc)
     Parse.addArrayValues("atom_labels", super_sym)
