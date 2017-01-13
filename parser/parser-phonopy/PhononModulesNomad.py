@@ -389,10 +389,11 @@ class Get_Properties():
         Emit.closeSection("section_frame_sequence",frameSeq)
 
     def prep_ref(self, ref_list, Emit):
+        sCalc = Emit.openSection("section_calculation_to_calculation_refs")
         for ref in ref_list:
-            sCalc = Emit.openSection("section_calculation_to_calculation_refs")
+            Emit.addValue("calculation_to_calculation_external_url", "source_calculation")
             Emit.addValue("calculation_to_calculation_external_url", ref)
-            Emit.closeSection("section_calculation_to_calculation_refs", sCalc)
+        Emit.closeSection("section_calculation_to_calculation_refs", sCalc)
 
     def emit_properties(self, emit = ["bands", "dos", "thermodynamical_properties"], parameters = None, mesh = None, t_max = None, t_min = None, t_step = None):
         
