@@ -390,8 +390,8 @@ class Get_Properties():
 
     def prep_ref(self, ref_list, Emit):
         sCalc = Emit.openSection("section_calculation_to_calculation_refs")
+        Emit.addValue("calculation_to_calculation_kind", "source_calculation")
         for ref in ref_list:
-            Emit.addValue("calculation_to_calculation_kind", "source_calculation")
             Emit.addValue("calculation_to_calculation_external_url", ref)
         Emit.closeSection("section_calculation_to_calculation_refs", sCalc)
 
