@@ -1,3 +1,4 @@
+# coding=utf-8
 #### phonopy parser written by Hagen-Henrik Kowalski and based on the original work of Joerg Mayer on phonopy-FHI-aims 
 
 import numpy as np
@@ -74,7 +75,7 @@ def generate_kPath_ase(cell, symprec):
         k_points.append([points[k] for k in p])
         for index in range(len(p)):
             if p[index] == 'G':
-                p[index] = 'Gamma'
+                p[index] = 'Γ'
     parameters = []
     for h, seg in enumerate(k_points):
         for i, path in enumerate(seg):
