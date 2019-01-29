@@ -49,7 +49,7 @@ if __name__ == "__main__":
     with open(name) as FORCES:
             data = json.load(FORCES)
     hessian= np.array(data["sections"]["section_single_configuration_calculation-0"]["hessian_matrix"])
-    SC_matrix = np.array(data["sections"]["section_system-1"]["SC_matrix"])
+    sc_matrix = np.array(data["sections"]["section_system-1"]["sc_matrix"])
     cell = np.array(data["sections"]["section_system-0"]["simulation_cell"])
     symbols = np.array(data["sections"]["section_system-0"]["atom_labels"])
     positions = np.array(data["sections"]["section_system-0"]["atom_positions"])
@@ -59,5 +59,5 @@ if __name__ == "__main__":
 
 
     #### omitting
-    get_properties = get_properties(hessian, cell, positions, symbols, SC_matrix, symmetry_thresh, displacement, file_name, metaInfoEnv, parser_info)
+    get_properties = get_properties(hessian, cell, positions, symbols, sc_matrix, symmetry_thresh, displacement, file_name, metaInfoEnv, parser_info)
     get_properties.omit_properties()

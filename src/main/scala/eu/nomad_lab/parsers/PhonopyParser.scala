@@ -46,7 +46,7 @@ object PhonopyParser extends SimpleExternalParserGenerator(
     "parser-phonopy/setup_paths.py",
     "nomad_meta_info/public.nomadmetainfo.json",
     "nomad_meta_info/common.nomadmetainfo.json",
-    "nomad_meta_info/meta_types.nomadmetainfo.json",
+    "nomad_meta_info/meta.nomadmetainfo.json",
     "nomad_meta_info/phonopy.nomadmetainfo.json"
   ) ++ lab.DefaultPythonInterpreter.commonFiles(),
   dirMap = Map(

@@ -183,7 +183,7 @@ class Get_Properties():
                 cell = None, 
                 positions = None, 
                 symbols = None, 
-                SC_matrix = None, 
+                sc_matrix = None, 
                 symmetry_thresh = None, 
                 displacement = None, 
                 name = None, 
@@ -203,7 +203,7 @@ class Get_Properties():
         #### Constructing phonopy_obj
         cell_obj = Atoms(cell = list(cell), symbols= list(symbols), positions= list(positions))
         scaled_positions = cell_obj.get_scaled_positions()
-        phonopy_obj = Phonopy(cell_obj, SC_matrix, distance = displacement, symprec = symmetry_thresh)
+        phonopy_obj = Phonopy(cell_obj, sc_matrix, distance = displacement, symprec = symmetry_thresh)
         phonopy_obj.set_force_constants(hessian)
         ####
 
@@ -390,15 +390,15 @@ class Get_Properties():
         
         #### emitting
         frameSeq = Emit.openSection("section_frame_sequence")
-        Emit.addArrayValues("frame_sequence_local_frames_ref", np.array([sSingleConf]))
+        Emit.addArrayValues("frame_sequence_to_frames_ref", np.array([sSingleConf]))
         sTD = Emit.openSection("section_thermodynamical_properties")
         Emit.addArrayValues("thermodynamical_property_temperature", T)
         Emit.addArrayValues("vibrational_free_energy_at_constant_volume", fe)
-        Emit.addArrayValues("thermodynamical_property_heat_capacity_C_v", cv)
+        Emit.addArrayValues("thermodynamical_property_heat_capacity_c_v", cv)
         sSamplingM = Emit.openSection("section_sampling_method")
         Emit.addValue("sampling_method", "taylor_expansion")
         Emit.addValue("sampling_method_expansion_order", 2)
-        Emit.addValue("frame_sequence_to_sampling_ref", sSamplingM)
+        Emit.addValue("frame_sequence_to_sampling_method_ref", sSamplingM)
         Emit.closeSection("section_thermodynamical_properties", sTD)
         Emit.closeSection("section_sampling_method", sSamplingM)
         Emit.closeSection("section_frame_sequence",frameSeq)
