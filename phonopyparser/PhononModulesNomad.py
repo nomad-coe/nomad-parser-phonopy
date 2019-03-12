@@ -20,14 +20,13 @@ import past
 import math
 import os, logging
 import json
-import setup_paths
 from fnmatch import fnmatch
 from ase.geometry import cell_to_cellpar, crystal_structure_from_cell
 from ase.dft.kpoints import special_paths, special_points, parse_path_string
 from phonopy.units import *
 from phonopy.structure.atoms import Atoms
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
-from con import Control
+from phonopyparser.con import Control
 from phonopy import Phonopy
 from phonopy.structure.symmetry import Symmetry
 from phonopy.file_IO import write_FORCE_CONSTANTS
@@ -115,7 +114,7 @@ def generate_kPath_ase(cell, symprec):
     return parameters
 ####
 
-def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-6):
+def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name, tol = 1e-6):
         symmetry = Symmetry(cell_obj)
         phonopy_obj = Phonopy(cell_obj,
                                 supercell_matrix,
@@ -125,14 +124,16 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
         directories = []
         digits = int( math.ceil( math.log(len(supercells)+1,10) ) ) + 1
         for i in range(len(supercells)):
-                directories.append( ("phonopy-FHI-aims-displacement-%0" + str(digits) + "d") % (i+1))
+                directories.append(("phonopy-FHI-aims-displacement-%0" + str(digits) + "d") % (i+1))
         space_group = phonopy_obj.symmetry.get_international_table()
-        #print (space_group)
         set_of_forces = []
         Relative_Path = []
         for directory, supercell in zip(directories, supercells):
                 aims_out = os.path.join(directory, directory + ".out")
+                # Added this line for NOMAD-FAIRD
+                aims_out = os.path.join(dir_name, aims_out)
                 if not os.path.isfile(aims_out):
+                    logging.warn("!!! file not found: %s" % aims_out)
                     #print ("!!! file not found: %s" % aims_out)
                     os.chdir(directory)
                     cwd = os.getcwd()
@@ -141,11 +142,15 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                     for name in con_list:
                         if fnmatch(name, '*.out') == True:
                                 aims_out = '%s/%s' % (directory, name)
+                                logging.warn(
+                                    "!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out
+                                )
                                 #print ("!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out)
                                 check_var = True
                                 break
                     if check_var == False:
                         #print ("!!! No phonon calculations found")
+                        logging.warn("!!! No phonon calculations found")
                         sys.exit(1)
                     os.chdir("../")
                 Relative_Path.append(aims_out)
@@ -166,12 +171,15 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                      (abs(clean_position(supercell_calculated.get_scaled_positions())-clean_position(supercell.get_scaled_positions())) < tol).all() and
                      (abs(supercell_calculated.get_cell()-supercell.get_cell()) < tol).all() ):
                      #print ("!!! there seems to be a rounding error")
+                     logging.warn("!!! there seems to be a rounding error")
                      forces = np.array(supercell_calculated.get_forces())
                      drift_force = forces.sum(axis=0)
                      for force in forces:
                         force -= drift_force / forces.shape[0]
                      set_of_forces.append(forces)
                 else:
+                    logging.warn(
+                        "!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
                     #print ("!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
                     sys.exit(2)
         return set_of_forces, phonopy_obj, Relative_Path

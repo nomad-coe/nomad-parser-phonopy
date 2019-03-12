@@ -9,6 +9,7 @@ syntax: glob
 *.pyc
 *.bk
 *.swp
+*.egg-info
 .DS_Store
 
 # logging files
