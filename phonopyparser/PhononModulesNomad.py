@@ -130,12 +130,11 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name,
         Relative_Path = []
         for directory, supercell in zip(directories, supercells):
                 aims_out = os.path.join(directory, directory + ".out")
-                # Added this line for NOMAD-FAIRD
+                # Added below line for NOMAD-FAIRD
                 aims_out = os.path.join(dir_name, aims_out)
                 if not os.path.isfile(aims_out):
                     logging.warn("!!! file not found: %s" % aims_out)
-                    #print ("!!! file not found: %s" % aims_out)
-                    os.chdir(directory)
+                    os.chdir(os.path.join(dir_name, directory))
                     cwd = os.getcwd()
                     con_list = os.listdir(cwd)
                     check_var = False
@@ -145,11 +144,9 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name,
                                 logging.warn(
                                     "!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out
                                 )
-                                #print ("!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out)
                                 check_var = True
                                 break
                     if check_var == False:
-                        #print ("!!! No phonon calculations found")
                         logging.warn("!!! No phonon calculations found")
                         sys.exit(1)
                     os.chdir("../")
@@ -170,7 +167,6 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name,
                      (supercell_calculated.get_atomic_numbers() == supercell.get_atomic_numbers()).all() and
                      (abs(clean_position(supercell_calculated.get_scaled_positions())-clean_position(supercell.get_scaled_positions())) < tol).all() and
                      (abs(supercell_calculated.get_cell()-supercell.get_cell()) < tol).all() ):
-                     #print ("!!! there seems to be a rounding error")
                      logging.warn("!!! there seems to be a rounding error")
                      forces = np.array(supercell_calculated.get_forces())
                      drift_force = forces.sum(axis=0)
@@ -180,7 +176,6 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name,
                 else:
                     logging.warn(
                         "!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
-                    #print ("!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
                     sys.exit(2)
         return set_of_forces, phonopy_obj, Relative_Path
 
