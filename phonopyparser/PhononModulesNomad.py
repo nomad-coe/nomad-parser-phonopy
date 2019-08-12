@@ -114,7 +114,7 @@ def generate_kPath_ase(cell, symprec):
     return parameters
 ####
 
-def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name, tol = 1e-6):
+def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-6):
         symmetry = Symmetry(cell_obj)
         phonopy_obj = Phonopy(cell_obj,
                                 supercell_matrix,
@@ -130,11 +130,8 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, dir_name,
         Relative_Path = []
         for directory, supercell in zip(directories, supercells):
                 aims_out = os.path.join(directory, directory + ".out")
-                # Added below line for NOMAD-FAIRD
-                aims_out = os.path.join(dir_name, aims_out)
                 if not os.path.isfile(aims_out):
                     logging.warn("!!! file not found: %s" % aims_out)
-                    os.chdir(os.path.join(dir_name, directory))
                     cwd = os.getcwd()
                     con_list = os.listdir(cwd)
                     check_var = False
