@@ -139,13 +139,12 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                         if fnmatch(name, '*.out') == True:
                                 aims_out = '%s/%s' % (directory, name)
                                 logging.warn(
-                                    "!!! WARNING your file seems to have a wrong name proceeding with %s" % aims_out
+                                    "Your file seems to have a wrong name proceeding with %s" % aims_out
                                 )
                                 check_var = True
                                 break
                     if check_var == False:
-                        logging.warn("!!! No phonon calculations found")
-                        sys.exit(1)
+                        raise Exception("No phonon calculations found")
                     os.chdir("../")
                 Relative_Path.append(aims_out)
                 supercell_calculated = read_aims_output(aims_out)
@@ -171,9 +170,8 @@ def Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym, tol = 1e-
                         force -= drift_force / forces.shape[0]
                      set_of_forces.append(forces)
                 else:
-                    logging.warn(
-                        "!!! calculated varies from expected supercell in FHI-aims output %s" % aims_out)
-                    sys.exit(2)
+                    raise Exception("calculated varies from expected supercell in FHI-aims output %s" % aims_out)
+
         return set_of_forces, phonopy_obj, Relative_Path
 
 
