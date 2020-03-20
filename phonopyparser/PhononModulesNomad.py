@@ -37,6 +37,8 @@ from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 from nomadcore.parser_backend import *
 from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 
+from nomad.parsing.legacy import Backend
+
 AimsFrequencyUnitFactors = { 'cm^-1' : VaspToCm, 'THz' : VaspToTHz, 'meV' : 1E3*VaspToEv }
 def get_pretty_print(json_object):
     return json.dumps(json_object, sort_keys=True, indent=4, separators=('"', '\n'))
@@ -415,7 +417,7 @@ class Get_Properties():
         name = self.name
         metaInfoEnv = self.metaInfoEnv
         parser_info = self.parser_info
-        Emit = JsonParseEventsWriterBackend(metaInfoEnv)
+        Emit = Backend(metaInfoEnv)
         Emit.startedParsingSession(name, parser_info)
         sRun = Emit.openSection("section_run")
         sSingleConf = Emit.openSection("section_single_configuration_calculation")

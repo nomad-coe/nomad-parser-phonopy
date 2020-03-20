@@ -22,7 +22,6 @@ import math
 import os
 import argparse
 import logging
-import nomad_meta_info
 
 
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
@@ -42,13 +41,6 @@ from phonopy.structure.atoms import PhonopyAtoms as Atoms
 phonopy_version = __version__
 parser_info = {"name": "parser_phonopy", "version": "1.0"}
 
-metaInfoPath = os.path.normpath(os.path.join(os.path.dirname(
-    os.path.abspath(nomad_meta_info.__file__)), "phonopy.nomadmetainfo.json"))
-
-metaInfoEnv, warnings = loadJsonFile(
-    filePath = metaInfoPath, dependencyLoader = None,
-    extraArgsHandling = InfoKindEl.ADD_EXTRA_ARGS, uri = None)
-
 
 class PhonopyParserWrapper():
     """ A proper class envolop for running this parser using Noamd-FAIRD infra. """
@@ -58,7 +50,7 @@ class PhonopyParserWrapper():
     def parse(self, mainfile):
         logging.info('phonopy parser started')
         logging.getLogger('nomadcore').setLevel(logging.WARNING)
-        backend = self.backend_factory(metaInfoEnv)
+        backend = self.backend_factory("phonopy.nomadmetainfo.json")
         # Call the old parser without a class.
         mainDir = os.path.dirname(os.path.dirname(os.path.abspath(mainfile)))
         cwd = os.getcwd()
@@ -152,24 +144,3 @@ def parse_without_class(name, backend):
     Parse.finishedParsingSession("ParseSuccess", None)
 
     return backend
-
-
-if __name__ == '__main__':
-    import sys
-
-    parser = argparse.ArgumentParser(description='Parses a phonopy calculation.')
-    parser.add_argument('mainFileUri',
-                        help='The uri of the main file associated with this calculation.')
-    parser.add_argument('mainFilePath', default = None,
-                        help='The path to the main file associated with this calculation.')
-    parser.add_argument('--kind', default = 'FHI-aims', choices = ["FHI-aims"],
-                        help='The kind of phonopy calculation performed')
-
-    args = parser.parse_args()
-    if args.mainFilePath:
-        mainDir = os.path.dirname(os.path.dirname(os.path.abspath(args.mainFilePath)))
-        os.chdir(mainDir)
-    name = args.mainFileUri
-    backend = JsonParseEventsWriterBackend(metaInfoEnv)
-
-    parse_without_class(name, backend)
