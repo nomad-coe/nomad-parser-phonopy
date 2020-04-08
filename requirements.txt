@@ -1,0 +1,1 @@
+phonopy@git+https://gitlab.mpcdf.mpg.de/nomad-lab/phonopy@master#egg=phonopy

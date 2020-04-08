@@ -22,7 +22,11 @@ import os, logging
 import json
 from fnmatch import fnmatch
 from ase.geometry import cell_to_cellpar, crystal_structure_from_cell
-from ase.dft.kpoints import special_paths, special_points, parse_path_string
+from ase.dft.kpoints import special_paths, parse_path_string
+try:
+    from ase.dft.kpoints import special_points
+except ImportError:
+    from ase.dft.kpoints import sc_special_points as special_points
 from phonopy.units import *
 from phonopy.structure.atoms import Atoms
 from phonopy.interface.FHIaims import read_aims, write_aims, read_aims_output
