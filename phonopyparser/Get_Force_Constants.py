@@ -38,6 +38,8 @@ from nomadcore.parser_backend import *
 from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 from phonopy.structure.atoms import PhonopyAtoms as Atoms
 
+import nomad.config
+
 phonopy_version = __version__
 parser_info = {"name": "parser_phonopy", "version": "1.0"}
 
@@ -80,7 +82,9 @@ def parse_without_class(name, backend):
     Prep_Path = name.split("phonopy-FHI-aims-displacement-")
     Whole_Path = []
     for Path in Relative_Path:
-        Whole_Path.append("%s%s" % (Prep_Path[0], Path))
+        abs_path = "%s%s" % (Prep_Path[0], Path)
+        rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
+        Whole_Path.append(rel_path)
     phonopy_obj.set_forces(set_of_forces)
     phonopy_obj.produce_force_constants()
     FC2 = phonopy_obj.get_force_constants()
