@@ -81,10 +81,15 @@ def parse_without_class(name, backend):
     set_of_forces, phonopy_obj, Relative_Path = Collect_Forces_aims(cell_obj, supercell_matrix, displacement, sym)
     Prep_Path = name.split("phonopy-FHI-aims-displacement-")
     Whole_Path = []
-    for Path in Relative_Path:
-        abs_path = "%s%s" % (Prep_Path[0], Path)
-        rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
-        Whole_Path.append(rel_path)
+
+    # Try to resolve references as paths relative to the upload root.
+    try:
+        for Path in Relative_Path:
+            abs_path = "%s%s" % (Prep_Path[0], Path)
+            rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
+            Whole_Path.append(rel_path)
+    except Exception:
+        logging.warn("Could not resolve path to a referenced calculation within the upload.")
     phonopy_obj.set_forces(set_of_forces)
     phonopy_obj.produce_force_constants()
     FC2 = phonopy_obj.get_force_constants()
