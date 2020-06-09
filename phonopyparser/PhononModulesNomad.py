@@ -234,10 +234,7 @@ class Get_Properties():
 
         #### getting number of atoms
         self.num_of_atoms = num_of_atoms
-
-
-
-
+        self.num_of_atoms_supercell = phonopy_obj.supercell.get_number_of_atoms()
 
     def post_process_band(self, frequency_unit_factor, parameters = None, is_eigenvectors=False, lookup_labels=False):
 
@@ -384,6 +381,12 @@ class Get_Properties():
         #### deviding free energy by number of atoms to obtain free energy per atom
         fe = fe/self.num_of_atoms
         ####
+
+        # The thermodynamic properties are reported by phonopy for the base
+        # system. Since the values in the metainfo are stored per the referenced
+        # system, we need to multiple by the size factor between the base system
+        # and the supersystem used in the calculations.
+        cv = cv*(self.num_of_atoms_supercell/self.num_of_atoms)
 
         #### converting units
         eVtoJoules = convert_unit_function('eV', 'joules')
