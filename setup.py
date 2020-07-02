@@ -25,7 +25,7 @@ def main():
         packages=find_packages(),
         install_requires=[
             'nomadcore',
-            'phonopy @ git+https://gitlab.mpcdf.mpg.de/nomad-lab/phonopy@master#egg=phonopy'
+            'phonopy-nomad-lab'
         ],
     )
 
