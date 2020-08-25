@@ -12,4 +12,21 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from phonopyparser.Get_Force_Constants import PhonopyParserWrapper
+from phonopyparser.phonopy_calculators import PhonopyCalculatorInterface
+
+from nomad.parsing.parser import FairdiParser
+from .metainfo import m_env
+
+
+class PhonopyParser(FairdiParser):
+    def __init__(self):
+        super().__init__(
+            name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
+            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
+        )
+
+    def parse(self, filepath, archive, logger=None):
+        self._metainfo_env = m_env
+
+        interface = PhonopyCalculatorInterface(filepath, archive, logger)
+        interface.parse()

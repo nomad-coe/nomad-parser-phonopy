@@ -1,5 +1,4 @@
-# Copyright 2015-2019 NOMAD
-#
+# Copyright 2016-2018 Markus Scheidgen
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -12,23 +11,11 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from setuptools import setup, find_packages
+import sys
+import json
 
+from phonopyparser import PhonopyParser
 
-def main():
-    setup(
-        name='phonopyparser',
-        version='0.1',
-        description='NOMAD parser implementation for phonopy parser.',
-        license='APACHE 2.0',
-        package_dir={'': './'},
-        packages=find_packages(),
-        install_requires=[
-            'nomadcore',
-            'phonopy'
-        ],
-    )
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    archive = PhonopyParser.main(sys.argv[1])
+    json.dump(archive.m_to_dict(), sys.stdout, indent=2)
