@@ -1,0 +1,7 @@
+code-label: Phonopy
+code-label-style: 'Capitals: P'
+code-url: https://phonopy.github.io/phonopy/
+parser-dir-name: dependencies/parsers/phonopy/
+parser-git-url: https://gitlab.mpcdf.mpg.de/nomad-lab/parser-phonopy
+parser-specific: ''
+table-of-files: ''
