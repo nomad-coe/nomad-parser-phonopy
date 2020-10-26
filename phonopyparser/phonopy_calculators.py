@@ -9,6 +9,7 @@ from phonopyparser.FHIaims import read_aims
 
 from nomadcore.unit_conversion.unit_conversion import convert_unit_function
 
+import nomad.config
 from nomad.datamodel.metainfo.public import section_run, section_system,\
     section_system_to_system_refs, section_method, section_single_configuration_calculation,\
     section_k_band, section_k_band_segment, section_dos, section_frame_sequence,\
@@ -60,9 +61,18 @@ class PhonopyCalculatorInterface:
         displacement = control.phonon["displacement"]
         sym = control.phonon["symmetry_thresh"]
 
-        set_of_forces, phonopy_obj, Relative_Path = read_forces_aims(
+        set_of_forces, phonopy_obj, relative_paths = read_forces_aims(
             cell_obj, supercell_matrix, displacement, sym)
-        # Prep_Path = name.split("phonopy-FHI-aims-displacement-")
+        prep_path = self.filepath.split("phonopy-FHI-aims-displacement-")
+
+        # Try to resolve references as paths relative to the upload root.
+        try:
+            for path in relative_paths:
+                abs_path = "%s%s" % (prep_path[0], path)
+                rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
+                self.references.append(rel_path)
+        except Exception:
+            self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
 
         phonopy_obj.set_forces(set_of_forces)
         phonopy_obj.produce_force_constants()
@@ -150,9 +160,9 @@ class PhonopyCalculatorInterface:
 
     def parse_ref(self):
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
-        sec_calc_refs = sec_scc.m_create(section_calculation_to_calculation_refs)
-        sec_calc_refs.calculation_to_calculation_kind = 'source_calculation'
         for ref in self.references:
+            sec_calc_refs = sec_scc.m_create(section_calculation_to_calculation_refs)
+            sec_calc_refs.calculation_to_calculation_kind = 'source_calculation'
             sec_calc_refs.calculation_to_calculation_external_url = ref
 
     def parse(self):
