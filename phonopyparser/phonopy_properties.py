@@ -1,5 +1,4 @@
 import numpy as np
-import logging
 
 from ase.geometry import crystal_structure_from_cell
 from ase.dft.kpoints import special_paths, parse_path_string
@@ -55,15 +54,17 @@ def generate_kpath_ase(cell, symprec):
 
 
 class PhononProperties():
-    def __init__(self, phonopy_obj, logger=None):
-        if logger is None:
-            logger = logging
-
+    def __init__(self, phonopy_obj, logger, **kwargs):
+        self.logger = logger
         self.phonopy_obj = phonopy_obj
+        self.t_max = kwargs.get('t_max', 1000)
+        self.t_min = kwargs.get('t_min', 0)
+        self.t_step = kwargs.get('t_step', 10)
 
         self.n_atoms = len(phonopy_obj.unitcell)
 
-        mesh_density = (2 * 80 ** 3) / self.n_atoms
+        k_mesh = kwargs.get('k_mesh', 60)
+        mesh_density = (2 * k_mesh ** 3) / self.n_atoms
         mesh_number = np.round(mesh_density**(1. / 3.))
         self.mesh = [mesh_number, mesh_number, mesh_number]
 
@@ -139,13 +140,9 @@ class PhononProperties():
     def get_thermodynamical_properties(self):
         phonopy_obj = self.phonopy_obj
 
-        t_max = 100
-        t_min = 0
-        t_step = 10
-        mesh = self.mesh
-
-        phonopy_obj.set_mesh(mesh, is_gamma_center=True)
-        phonopy_obj.set_thermal_properties(t_step=t_step, t_max=t_max, t_min=t_min)
+        phonopy_obj.set_mesh(self.mesh, is_gamma_center=True)
+        phonopy_obj.set_thermal_properties(
+            t_step=self.t_step, t_max=self.t_max, t_min=self.t_min)
         T, fe, entropy, cv = phonopy_obj.get_thermal_properties()
         kJmolToEv = 1.0 / EvTokJmol
         fe = fe * kJmolToEv

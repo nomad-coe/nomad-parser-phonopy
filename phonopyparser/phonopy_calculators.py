@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import logging
 import phonopy
 from phonopy.units import THzToEv
 
@@ -15,20 +16,33 @@ from nomad.datamodel.metainfo.public import section_run, section_system,\
     section_k_band, section_k_band_segment, section_dos, section_frame_sequence,\
     section_thermodynamical_properties, section_sampling_method, Workflow, Phonon, \
     section_calculation_to_calculation_refs
+from nomad.parsing.parser import FairdiParser
+from .metainfo import m_env
 
 
-class PhonopyCalculatorInterface:
-    def __init__(self, filepath, archive, logger=None):
-        self.filepath = os.path.abspath(filepath)
-        self.archive = archive
-        self.logger = logger
+class PhonopyParser(FairdiParser):
+    def __init__(self):
+        super().__init__(
+            name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
+            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
+        )
+
+    @property
+    def mainfile(self):
+        return self._filepath
+
+    @mainfile.setter
+    def mainfile(self, val):
         self._phonopy_obj = None
-        self.calculator = None
-        if 'control.in' in filepath:
-            self.calculator = 'fhi-aims'
-        elif 'phonon.yaml' in filepath:
-            self.calculator = 'vasp'
         self.references = []
+        self._filepath = os.path.abspath(val)
+
+    @property
+    def calculator(self):
+        if 'control.in' in self.mainfile:
+            return 'fhi-aims'
+        elif 'phonon.yaml' in self.mainfile:
+            return 'vasp'
 
     @property
     def phonopy_obj(self):
@@ -41,7 +55,7 @@ class PhonopyCalculatorInterface:
 
     def _build_phonopy_object_vasp(self):
         cwd = os.getcwd()
-        os.chdir(os.path.dirname(self.filepath))
+        os.chdir(os.path.dirname(self.mainfile))
 
         phonopy_obj = phonopy.load('phonon.yaml')
         os.chdir(cwd)
@@ -50,8 +64,7 @@ class PhonopyCalculatorInterface:
 
     def _build_phonopy_object_fhi_aims(self):
         cwd = os.getcwd()
-        os.chdir(os.path.dirname(os.path.dirname(self.filepath)))
-
+        os.chdir(os.path.dirname(os.path.dirname(self.mainfile)))
         cell_obj = read_aims("geometry.in")
         control = Control()
         if (len(control.phonon["supercell"]) == 3):
@@ -63,7 +76,7 @@ class PhonopyCalculatorInterface:
 
         set_of_forces, phonopy_obj, relative_paths = read_forces_aims(
             cell_obj, supercell_matrix, displacement, sym)
-        prep_path = self.filepath.split("phonopy-FHI-aims-displacement-")
+        prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
 
         # Try to resolve references as paths relative to the upload root.
         try:
@@ -121,7 +134,7 @@ class PhonopyCalculatorInterface:
         sec_dos.dos_values = dos
         sec_dos.dos_energies = f
 
-    def parser_thermodynamical_properties(self):
+    def parse_thermodynamical_properties(self):
         T, fe, _, cv = self.properties.get_thermodynamical_properties()
 
         n_atoms = len(self.phonopy_obj.unitcell)
@@ -165,9 +178,15 @@ class PhonopyCalculatorInterface:
             sec_calc_refs.calculation_to_calculation_kind = 'source_calculation'
             sec_calc_refs.calculation_to_calculation_external_url = ref
 
-    def parse(self):
+    def parse(self, filepath, archive, logger, **kwargs):
+        self.mainfile = filepath
+        self.archive = archive
+        self.logger = logger if logger is not None else logging
+
+        self._metainfo_env = m_env
+
         phonopy_obj = self.phonopy_obj
-        self.properties = PhononProperties(self.phonopy_obj, self.logger)
+        self.properties = PhononProperties(self.phonopy_obj, self.logger, **kwargs)
 
         pbc = np.array((1, 1, 1), bool)
 
@@ -227,7 +246,7 @@ class PhonopyCalculatorInterface:
 
         self.parse_bandstructure()
         self.parse_dos()
-        self.parser_thermodynamical_properties()
+        self.parse_thermodynamical_properties()
         self.parse_ref()
 
         sec_workflow = self.archive.m_create(Workflow)
