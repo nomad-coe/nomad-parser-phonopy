@@ -21,11 +21,12 @@ from .metainfo import m_env
 
 
 class PhonopyParser(FairdiParser):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__(
             name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
             mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
         )
+        self._kwargs = kwargs
 
     @property
     def mainfile(self):
@@ -182,11 +183,12 @@ class PhonopyParser(FairdiParser):
         self.mainfile = filepath
         self.archive = archive
         self.logger = logger if logger is not None else logging
+        self._kwargs.update(kwargs)
 
         self._metainfo_env = m_env
 
         phonopy_obj = self.phonopy_obj
-        self.properties = PhononProperties(self.phonopy_obj, self.logger, **kwargs)
+        self.properties = PhononProperties(self.phonopy_obj, self.logger, **self._kwargs)
 
         pbc = np.array((1, 1, 1), bool)
 

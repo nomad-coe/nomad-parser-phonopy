@@ -1,1 +1,1 @@
-from phonopyparser.phonopy_calculators import PhonopyParser
+from phonopyparser.phonopy_parser import PhonopyParser
