@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pint
 import logging
 import phonopy
 from phonopy.units import THzToEv
@@ -8,14 +9,11 @@ from phonopyparser.fhiaims_io import Control, read_forces_aims
 from phonopyparser.phonopy_properties import PhononProperties
 from phonopyparser.FHIaims import read_aims
 
-from nomadcore.unit_conversion.unit_conversion import convert_unit_function
-
 import nomad.config
-from nomad.datamodel.metainfo.public import section_run, section_system,\
-    section_system_to_system_refs, section_method, section_single_configuration_calculation,\
-    section_k_band, section_k_band_segment, section_dos, section_frame_sequence,\
-    section_thermodynamical_properties, section_sampling_method, Workflow, Phonon, \
-    section_calculation_to_calculation_refs
+from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
+    SingleConfigurationCalculation, KBand, KBandSegment, Dos, FrameSequence,\
+    ThermodynamicalProperties, SamplingMethod, Workflow, Phonon, CalculationToCalculationRefs
+
 from nomad.parsing.parser import FairdiParser
 from .metainfo import m_env
 
@@ -102,17 +100,16 @@ class PhonopyParser(FairdiParser):
         freqs = freqs * THzToEv
 
         # convert eV to J
-        eVtoJoules = convert_unit_function('eV', 'joules')
-        freqs = eVtoJoules(freqs)
+        freqs = pint.Quantity(freqs, 'eV').to('joules').magnitude
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
 
-        sec_k_band = sec_scc.m_create(section_k_band)
+        sec_k_band = sec_scc.m_create(KBand)
         sec_k_band.band_structure_kind = 'vibrational'
 
         for i in range(len(freqs)):
             freq = np.expand_dims(freqs[i], axis=0)
-            sec_k_band_segment = sec_k_band.m_create(section_k_band_segment)
+            sec_k_band_segment = sec_k_band.m_create(KBandSegment)
             sec_k_band_segment.band_energies = freq
             sec_k_band_segment.band_k_points = bands[i]
             sec_k_band_segment.band_segm_labels = bands_labels[i]
@@ -125,12 +122,11 @@ class PhonopyParser(FairdiParser):
         dos = np.expand_dims(dos, axis=0)
 
         # convert THz to eV to Joules
-        eVtoJoules = convert_unit_function('eV', 'joules')
         f = f * THzToEv
-        f = eVtoJoules(f)
+        f = pint.Quantity(f, 'eV').to('joules').magnitude
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
-        sec_dos = sec_scc.m_create(section_dos)
+        sec_dos = sec_scc.m_create(Dos)
         sec_dos.dos_kind = 'vibrational'
         sec_dos.dos_values = dos
         sec_dos.dos_energies = f
@@ -150,23 +146,22 @@ class PhonopyParser(FairdiParser):
         cv = cv * (n_atoms_supercell / n_atoms)
 
         # convert to SI units
-        eVtoJoules = convert_unit_function('eV', 'joules')
-        eVperKtoJoules = convert_unit_function('eV*K**-1', 'joules*K**-1')
-        fe = eVtoJoules(fe)
-        cv = eVperKtoJoules(cv)
+        fe = pint.Quantity(fe, 'eV').to('joules').magnitude
+
+        cv = pint.Quantity(cv, 'eV/K').to('joules/K').magnitude
 
         sec_run = self.archive.section_run[0]
         sec_scc = sec_run.section_single_configuration_calculation
 
-        sec_frame_sequence = sec_run.m_create(section_frame_sequence)
+        sec_frame_sequence = sec_run.m_create(FrameSequence)
         sec_frame_sequence.frame_sequence_local_frames_ref = sec_scc
 
-        sec_thermo_prop = sec_frame_sequence.m_create(section_thermodynamical_properties)
+        sec_thermo_prop = sec_frame_sequence.m_create(ThermodynamicalProperties)
         sec_thermo_prop.thermodynamical_property_temperature = T
         sec_thermo_prop.vibrational_free_energy_at_constant_volume = fe
         sec_thermo_prop.thermodynamical_property_heat_capacity_C_v = cv
 
-        sec_sampling_method = sec_run.m_create(section_sampling_method)
+        sec_sampling_method = sec_run.m_create(SamplingMethod)
         sec_sampling_method.sampling_method = 'taylor_expansion'
         sec_sampling_method.sampling_method_expansion_order = 2
 
@@ -175,7 +170,7 @@ class PhonopyParser(FairdiParser):
     def parse_ref(self):
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
         for ref in self.references:
-            sec_calc_refs = sec_scc.m_create(section_calculation_to_calculation_refs)
+            sec_calc_refs = sec_scc.m_create(CalculationToCalculationRefs)
             sec_calc_refs.calculation_to_calculation_kind = 'source_calculation'
             sec_calc_refs.calculation_to_calculation_external_url = ref
 
@@ -200,34 +195,31 @@ class PhonopyParser(FairdiParser):
         super_pos = self.phonopy_obj.supercell.get_positions()
         super_sym = np.array(self.phonopy_obj.supercell.get_chemical_symbols())
 
-        # convert to SI
-        convert_fc = convert_unit_function('eV*angstrom**-2', 'joules*meter**-2')
-        convert_angstrom = convert_unit_function('angstrom', 'meter')
+        unit_cell = pint.Quantity(unit_cell, 'angstrom').to('meter').magnitude
+        unit_pos = pint.Quantity(unit_pos, 'angstrom').to('meter').magnitude
 
-        unit_cell = convert_angstrom(unit_cell)
-        unit_pos = convert_angstrom(unit_pos)
-
-        super_cell = convert_angstrom(super_cell)
-        super_pos = convert_angstrom(super_pos)
+        super_cell = pint.Quantity(super_cell, 'angstrom').to('meter').magnitude
+        super_pos = pint.Quantity(super_pos, 'angstrom').to('meter').magnitude
 
         displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
-        displacement = convert_angstrom(displacement)
+        displacement = pint.Quantity(displacement, 'angstrom').to('meter').magnitude
+
         supercell_matrix = phonopy_obj.supercell_matrix
         sym_tol = phonopy_obj.symmetry.tolerance
         force_constants = phonopy_obj.get_force_constants()
-        force_constants = convert_fc(force_constants)
+        force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('eV/(m**2)').magnitude
 
-        sec_run = self.archive.m_create(section_run)
+        sec_run = self.archive.m_create(Run)
         sec_run.program_name = 'Phonopy'
         sec_run.program_version = phonopy.__version__
-        sec_system_unit = sec_run.m_create(section_system)
+        sec_system_unit = sec_run.m_create(System)
         sec_system_unit.configuration_periodic_dimensions = pbc
         sec_system_unit.atom_labels = unit_sym
         sec_system_unit.atom_positions = unit_pos
         sec_system_unit.simulation_cell = unit_cell
 
-        sec_system = sec_run.m_create(section_system)
-        sec_system_to_system_refs = sec_system.m_create(section_system_to_system_refs)
+        sec_system = sec_run.m_create(System)
+        sec_system_to_system_refs = sec_system.m_create(SystemToSystemRefs)
         sec_system_to_system_refs.system_to_system_kind = 'subsystem'
         sec_system_to_system_refs.system_to_system_ref = sec_system_unit
         sec_system.configuration_periodic_dimensions = pbc
@@ -237,11 +229,11 @@ class PhonopyParser(FairdiParser):
         sec_system.SC_matrix = supercell_matrix
         sec_system.x_phonopy_original_system_ref = sec_system_unit
 
-        sec_method = sec_run.m_create(section_method)
+        sec_method = sec_run.m_create(Method)
         sec_method.x_phonopy_symprec = sym_tol
         sec_method.x_phonopy_displacement = displacement
 
-        sec_scc = sec_run.m_create(section_single_configuration_calculation)
+        sec_scc = sec_run.m_create(SingleConfigurationCalculation)
         sec_scc.single_configuration_calculation_to_system_ref = sec_system
         sec_scc.single_configuration_to_calculation_method_ref = sec_method
         sec_scc.hessian_matrix = force_constants

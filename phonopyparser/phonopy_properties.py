@@ -59,11 +59,11 @@ class PhononProperties():
         self.phonopy_obj = phonopy_obj
         self.t_max = kwargs.get('t_max', 1000)
         self.t_min = kwargs.get('t_min', 0)
-        self.t_step = kwargs.get('t_step', 10)
+        self.t_step = kwargs.get('t_step', 100)
 
         self.n_atoms = len(phonopy_obj.unitcell)
 
-        k_mesh = kwargs.get('k_mesh', 60)
+        k_mesh = kwargs.get('k_mesh', 30)
         mesh_density = (2 * k_mesh ** 3) / self.n_atoms
         mesh_number = np.round(mesh_density**(1. / 3.))
         self.mesh = [mesh_number, mesh_number, mesh_number]
