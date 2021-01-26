@@ -230,6 +230,9 @@ class PhonopyParser(FairdiParser):
         sec_system.x_phonopy_original_system_ref = sec_system_unit
 
         sec_method = sec_run.m_create(Method)
+        # TODO I put this so as to have a recognizable section method, but metainfo
+        # should be expanded to include phonon related method parameters
+        sec_method.electronic_structure_method = 'DFT'
         sec_method.x_phonopy_symprec = sym_tol
         sec_method.x_phonopy_displacement = displacement
 
