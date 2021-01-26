@@ -134,7 +134,8 @@ def read_forces_aims(cell_obj, supercell_matrix, displacement, sym, tol=1e-6, lo
                     check_var = True
                     break
             if not check_var:
-                raise Exception("No phonon calculations found")
+                logger.error("No phonon calculations found")
+                return set_of_forces, phonopy_obj, Relative_Path
             os.chdir("../")
         Relative_Path.append(aims_out)
         supercell_calculated = read_aims_output(aims_out)
@@ -162,6 +163,6 @@ def read_forces_aims(cell_obj, supercell_matrix, displacement, sym, tol=1e-6, lo
                 force -= drift_force / forces.shape[0]
             set_of_forces.append(forces)
         else:
-            raise Exception("calculated varies from expected supercell in FHI-aims output %s" % aims_out)
+            logger.error("calculated varies from expected supercell in FHI-aims output")
 
     return set_of_forces, phonopy_obj, Relative_Path
