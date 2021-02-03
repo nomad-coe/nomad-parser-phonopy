@@ -73,10 +73,16 @@ class PhonopyParser(FairdiParser):
         displacement = control.phonon["displacement"]
         sym = control.phonon["symmetry_thresh"]
 
-        set_of_forces, phonopy_obj, relative_paths = read_forces_aims(
-            cell_obj, supercell_matrix, displacement, sym)
-        prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
+        try:
+            set_of_forces, phonopy_obj, relative_paths = read_forces_aims(
+                cell_obj, supercell_matrix, displacement, sym)
+        except Exception:
+            self.logger.error("Error generating phonopy object.")
+            set_of_forces = []
+            phonopy_obj = None
+            relative_paths = []
 
+        prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
         # Try to resolve references as paths relative to the upload root.
         try:
             for path in relative_paths:
@@ -86,10 +92,11 @@ class PhonopyParser(FairdiParser):
         except Exception:
             self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
 
-        phonopy_obj.set_forces(set_of_forces)
-        phonopy_obj.produce_force_constants()
-
         os.chdir(cwd)
+
+        if set_of_forces:
+            phonopy_obj.set_forces(set_of_forces)
+            phonopy_obj.produce_force_constants()
 
         self._phonopy_obj = phonopy_obj
 
@@ -182,8 +189,11 @@ class PhonopyParser(FairdiParser):
 
         self._metainfo_env = m_env
 
+        sec_run = self.archive.m_create(Run)
+        sec_run.program_name = 'Phonopy'
+        sec_run.program_version = phonopy.__version__
+
         phonopy_obj = self.phonopy_obj
-        self.properties = PhononProperties(self.phonopy_obj, self.logger, **self._kwargs)
 
         pbc = np.array((1, 1, 1), bool)
 
@@ -206,12 +216,7 @@ class PhonopyParser(FairdiParser):
 
         supercell_matrix = phonopy_obj.supercell_matrix
         sym_tol = phonopy_obj.symmetry.tolerance
-        force_constants = phonopy_obj.get_force_constants()
-        force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('eV/(m**2)').magnitude
 
-        sec_run = self.archive.m_create(Run)
-        sec_run.program_name = 'Phonopy'
-        sec_run.program_version = phonopy.__version__
         sec_system_unit = sec_run.m_create(System)
         sec_system_unit.configuration_periodic_dimensions = pbc
         sec_system_unit.atom_labels = unit_sym
@@ -236,10 +241,19 @@ class PhonopyParser(FairdiParser):
         sec_method.x_phonopy_symprec = sym_tol
         sec_method.x_phonopy_displacement = displacement
 
+        try:
+            force_constants = phonopy_obj.get_force_constants()
+            force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('eV/(m**2)').magnitude
+        except Exception:
+            self.logger.error('Error producing force constants.')
+            return
+
         sec_scc = sec_run.m_create(SingleConfigurationCalculation)
         sec_scc.single_configuration_calculation_to_system_ref = sec_system
         sec_scc.single_configuration_to_calculation_method_ref = sec_method
         sec_scc.hessian_matrix = force_constants
+
+        self.properties = PhononProperties(self.phonopy_obj, self.logger, **self._kwargs)
 
         self.parse_bandstructure()
         self.parse_dos()
