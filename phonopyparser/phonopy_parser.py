@@ -22,18 +22,178 @@ import pint
 import logging
 import phonopy
 from phonopy.units import THzToEv
+from phonopy.structure.atoms import PhonopyAtoms
 
-from phonopyparser.fhiaims_io import Control, read_forces_aims
 from phonopyparser.phonopy_properties import PhononProperties
-from phonopyparser.FHIaims import read_aims
 
 import nomad.config
+from nomad.parsing.file_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
     SingleConfigurationCalculation, KBand, KBandSegment, Dos, FrameSequence,\
     ThermodynamicalProperties, SamplingMethod, Workflow, Phonon, CalculationToCalculationRefs
 
 from nomad.parsing.parser import FairdiParser
 from .metainfo import m_env
+
+
+def read_aims(filename):
+    '''Method to read FHI-aims geometry files in phonopy context.'''
+    cell = []
+    positions = []
+    fractional = []
+    symbols = []
+    magmoms = []
+    with open(filename) as f:
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            line = line.split()
+            if line[0] == 'lattice_vector':
+                cell.append([float(x) for x in line[1:4]])
+            elif line[0].startswith('atom'):
+                fractional.append(line[0] == 'atom_frac')
+                positions.append([float(x) for x in line[1:4]])
+                symbols.append(line[4])
+            elif line[0] == 'initial_moment':
+                magmoms.append(float(line[1]))
+
+    for n, pos in enumerate(positions):
+        if fractional[n]:
+            positions[n] = [sum([pos[j] * cell[j][i] for j in range(3)]) for i in range(3)]
+    if len(magmoms) == len(positions):
+        return PhonopyAtoms(cell=cell, symbols=symbols, positions=positions, magmoms=magmoms)
+    else:
+        return PhonopyAtoms(cell=cell, symbols=symbols, positions=positions)
+
+
+class Atoms_with_forces(PhonopyAtoms):
+    ''' Hack to phonopy.atoms to maintain ASE compatibility also for forces.'''
+
+    def get_forces(self):
+        return self.forces
+
+
+def read_aims_output(filename):
+    ''' Read FHI-aims output
+        returns geometry with forces from last self-consistency iteration'''
+    cell = []
+    symbols = []
+    positions = []
+    forces = []
+    N = 0
+
+    with open(filename) as f:
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            if 'Number of atoms' in line:
+                N = int(line.split()[5])
+            elif '| Unit cell:' in line:
+                cell = [[float(x) for x in f.readline().split()[1:4]] for _ in range(3)]
+            elif 'Atomic structure:' in line or 'Updated atomic structure:' in line:
+                positions = []
+                symbols = []
+                symbol_index = 3 if 'Atomic' in line else 4
+                position_index = 4 if 'Atomic' in line else 1
+                while len(positions) != N:
+                    line = f.readline()
+                    if 'Species' in line or 'atom ' in line:
+                        line = line.split()
+                        positions.append([float(x) for x in line[position_index:position_index + 3]])
+                        symbols.append(line[symbol_index])
+            elif 'Total atomic forces' in line:
+                forces = [[float(x) for x in f.readline().split()[2:5]] for _ in range(N)]
+
+    atoms = Atoms_with_forces(cell=cell, symbols=symbols, positions=positions)
+    atoms.forces = forces
+
+    return atoms
+
+
+def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
+    '''
+    Collect the pre calculated forces for each of the supercells
+    '''
+    def get_aims_output_file(directory):
+        files = [f for f in os.listdir(directory) if f.endswith('.out')]
+        output = None
+        for f in files:
+            try:
+                output = read_aims_output(os.path.join(directory, f))
+                break
+            except Exception:
+                pass
+        return output
+
+    def is_equal(reference, calculated):
+        if len(reference) != len(calculated):
+            return False
+        if (reference.get_atomic_numbers() != calculated.get_atomic_numbers()).any():
+            return False
+        if (abs(reference.get_cell() - calculated.get_cell()) > tolerance).any():
+            return False
+        ref_pos = reference.get_scaled_positions()
+        cal_pos = calculated.get_scaled_positions()
+        # wrap to bounding cell
+        ref_pos %= 1.0
+        cal_pos %= 1.0
+        if (abs(ref_pos - cal_pos) > tolerance).any():
+            return False
+        return True
+
+    reference_paths, forces_sets = [], []
+
+    n_pad = int(np.ceil(np.log10(len(reference_supercells) + 1))) + 1
+    for n, reference_supercell in enumerate(reference_supercells):
+        directory = 'phonopy-FHI-aims-displacement-%s' % (str(n + 1).zfill(n_pad))
+        filename = os.path.join(directory, '%s.out' % directory)
+        if os.path.isfile(filename):
+            calculated_supercell = read_aims_output(filename)
+        else:
+            # try reading out files
+            calculated_supercell = get_aims_output_file(directory)
+
+        # compare if calculated cell really corresponds to supercell
+        if not is_equal(reference_supercell, calculated_supercell):
+            logger.error('Supercells do  not match')
+            return reference_paths, forces_sets
+
+        forces = np.array(calculated_supercell.get_forces())
+        drift_force = forces.sum(axis=0)
+        for force in forces:
+            force -= drift_force / forces.shape[0]
+        forces_sets.append(forces)
+        reference_paths.append(filename)
+    return forces_sets, reference_paths
+
+
+class ControlParser(TextParser):
+    def __init__(self):
+        super().__init__()
+
+    def init_quantities(self):
+        def str_to_nac(val_in):
+            val = val_in.strip().split()
+            nac = dict(file=val[0], method=val[1].lower())
+            if len(val) > 2:
+                nac['delta'] = [float(v) for v in val[3:6]]
+            return nac
+
+        def str_to_supercell(val_in):
+            val = [int(v) for v in val_in.strip().split()]
+            if len(val) == 3:
+                return np.diag(val)
+            else:
+                return np.reshape(val, (3, 3))
+
+        self._quantities = [
+            Quantity('displacement', r'\n *phonon displacement\s*([\d\.]+)', dtype=float),
+            Quantity('symmetry_thresh', r'\n *phonon symmetry_thresh\s*([\d\.]+)', dtype=float),
+            Quantity('frequency_unit', r'\n *phonon frequency_unit\s*(\S+)'),
+            Quantity('supercell', r'\n *phonon supercell\s*(.+)', str_operation=str_to_supercell),
+            Quantity('nac', r'\n *phonon nac\s*(.+)', str_operation=str_to_nac)]
 
 
 class PhonopyParser(FairdiParser):
@@ -43,6 +203,7 @@ class PhonopyParser(FairdiParser):
             mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
         )
         self._kwargs = kwargs
+        self.control_parser = ControlParser()
 
     @property
     def mainfile(self):
@@ -82,18 +243,16 @@ class PhonopyParser(FairdiParser):
     def _build_phonopy_object_fhi_aims(self):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.dirname(self.mainfile)))
-        cell_obj = read_aims("geometry.in")
-        control = Control()
-        if (len(control.phonon["supercell"]) == 3):
-            supercell_matrix = np.diag(control.phonon["supercell"])
-        elif (len(control.phonon["supercell"]) == 9):
-            supercell_matrix = np.array(control.phonon["supercell"]).reshape(3, 3)
-        displacement = control.phonon["displacement"]
-        sym = control.phonon["symmetry_thresh"]
-
+        cell_obj = read_aims('geometry.in')
+        self.control_parser.mainfile = 'control.in'
+        supercell_matrix = self.control_parser.get('supercell')
+        displacement = self.control_parser.get('displacement', 0.001)
+        sym = self.control_parser.get('symmetry_thresh', 1e-6)
         try:
-            set_of_forces, phonopy_obj, relative_paths = read_forces_aims(
-                cell_obj, supercell_matrix, displacement, sym)
+            phonopy_obj = phonopy.Phonopy(cell_obj, supercell_matrix, symprec=sym)
+            phonopy_obj.generate_displacements(distance=displacement)
+            supercells = phonopy_obj.get_supercells_with_displacements()
+            set_of_forces, relative_paths = read_forces_aims(supercells, logger=self.logger)
         except Exception:
             self.logger.error("Error generating phonopy object.")
             set_of_forces = []
@@ -200,7 +359,7 @@ class PhonopyParser(FairdiParser):
             sec_calc_refs.calculation_to_calculation_external_url = ref
 
     def parse(self, filepath, archive, logger, **kwargs):
-        self.mainfile = filepath
+        self.mainfile = os.path.abspath(filepath)
         self.archive = archive
         self.logger = logger if logger is not None else logging
         self._kwargs.update(kwargs)
@@ -261,7 +420,7 @@ class PhonopyParser(FairdiParser):
 
         try:
             force_constants = phonopy_obj.get_force_constants()
-            force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('eV/(m**2)').magnitude
+            force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('J/(m**2)').magnitude
         except Exception:
             self.logger.error('Error producing force constants.')
             return
