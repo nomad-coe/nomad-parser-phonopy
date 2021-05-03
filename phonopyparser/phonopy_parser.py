@@ -129,10 +129,13 @@ def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
 
     def is_equal(reference, calculated):
         if len(reference) != len(calculated):
+            logger.warn('Inconsistent number of atoms.')
             return False
         if (reference.get_atomic_numbers() != calculated.get_atomic_numbers()).any():
+            logger.warn('Inconsistent species.')
             return False
         if (abs(reference.get_cell() - calculated.get_cell()) > tolerance).any():
+            logger.warn('Inconsistent cell.')
             return False
         ref_pos = reference.get_scaled_positions()
         cal_pos = calculated.get_scaled_positions()
@@ -140,6 +143,7 @@ def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
         ref_pos %= 1.0
         cal_pos %= 1.0
         if (abs(ref_pos - cal_pos) > tolerance).any():
+            logger.warn('Inconsistent positions.')
             return False
         return True
 
@@ -158,7 +162,6 @@ def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
         # compare if calculated cell really corresponds to supercell
         if not is_equal(reference_supercell, calculated_supercell):
             logger.error('Supercells do  not match')
-            return reference_paths, forces_sets
 
         forces = np.array(calculated_supercell.get_forces())
         drift_force = forces.sum(axis=0)
