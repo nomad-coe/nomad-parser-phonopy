@@ -18,7 +18,6 @@
 #
 import os
 import numpy as np
-import pint
 import logging
 import phonopy
 from phonopy.units import THzToEv
@@ -27,6 +26,7 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopyparser.phonopy_properties import PhononProperties
 
 import nomad.config
+from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
     SingleConfigurationCalculation, KBand, KBandSegment, Dos, FrameSequence,\
@@ -287,7 +287,7 @@ class PhonopyParser(FairdiParser):
         freqs = freqs * THzToEv
 
         # convert eV to J
-        freqs = pint.Quantity(freqs, 'eV').to('joules').magnitude
+        freqs = (freqs * ureg.eV).to('joules').magnitude
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
 
@@ -310,7 +310,7 @@ class PhonopyParser(FairdiParser):
 
         # convert THz to eV to Joules
         f = f * THzToEv
-        f = pint.Quantity(f, 'eV').to('joules').magnitude
+        f = (f * ureg.eV).to('joules').magnitude
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
         sec_dos = sec_scc.m_create(Dos)
@@ -333,9 +333,9 @@ class PhonopyParser(FairdiParser):
         cv = cv * (n_atoms_supercell / n_atoms)
 
         # convert to SI units
-        fe = pint.Quantity(fe, 'eV').to('joules').magnitude
+        fe = (fe * ureg.eV).to('joules').magnitude
 
-        cv = pint.Quantity(cv, 'eV/K').to('joules/K').magnitude
+        cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
 
         sec_run = self.archive.section_run[0]
         sec_scc = sec_run.section_single_configuration_calculation
@@ -385,14 +385,14 @@ class PhonopyParser(FairdiParser):
         super_pos = self.phonopy_obj.supercell.get_positions()
         super_sym = np.array(self.phonopy_obj.supercell.get_chemical_symbols())
 
-        unit_cell = pint.Quantity(unit_cell, 'angstrom').to('meter').magnitude
-        unit_pos = pint.Quantity(unit_pos, 'angstrom').to('meter').magnitude
+        unit_cell = (unit_cell * ureg.angstrom).to('meter').magnitude
+        unit_pos = (unit_pos * ureg.angstrom).to('meter').magnitude
 
-        super_cell = pint.Quantity(super_cell, 'angstrom').to('meter').magnitude
-        super_pos = pint.Quantity(super_pos, 'angstrom').to('meter').magnitude
+        super_cell = (super_cell * ureg.angstrom).to('meter').magnitude
+        super_pos = (super_pos * ureg.angstrom).to('meter').magnitude
 
         displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
-        displacement = pint.Quantity(displacement, 'angstrom').to('meter').magnitude
+        displacement = (displacement * ureg.angstrom).to('meter').magnitude
 
         supercell_matrix = phonopy_obj.supercell_matrix
         sym_tol = phonopy_obj.symmetry.tolerance
@@ -423,7 +423,7 @@ class PhonopyParser(FairdiParser):
 
         try:
             force_constants = phonopy_obj.get_force_constants()
-            force_constants = pint.Quantity(force_constants, 'eV/(angstrom**2)').to('J/(m**2)').magnitude
+            force_constants = (force_constants * ureg.eV / ureg.angstrom ** 2).to('J/(m**2)').magnitude
         except Exception:
             self.logger.error('Error producing force constants.')
             return
