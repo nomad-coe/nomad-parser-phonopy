@@ -29,7 +29,7 @@ import nomad.config
 from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
-    SingleConfigurationCalculation, KBand, KBandSegment, Dos, FrameSequence,\
+    SingleConfigurationCalculation, KBand, KBandSegment, Dos, DosValues, FrameSequence,\
     ThermodynamicalProperties, SamplingMethod, Workflow, Phonon, CalculationToCalculationRefs
 
 from nomad.parsing.parser import FairdiParser
@@ -304,19 +304,15 @@ class PhonopyParser(FairdiParser):
     def parse_dos(self):
         f, dos = self.properties.get_dos()
 
-        # To match the shape given in meta data another dimension is added to the
-        # array (spin degress of fredom is 1)
-        dos = np.expand_dims(dos, axis=0)
-
         # convert THz to eV to Joules
         f = f * THzToEv
         f = (f * ureg.eV).to('joules').magnitude
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
-        sec_dos = sec_scc.m_create(Dos)
-        sec_dos.dos_kind = 'vibrational'
-        sec_dos.dos_values = dos
+        sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_phonon)
         sec_dos.dos_energies = f
+        sec_dos_values = sec_dos.m_create(DosValues, Dos.dos_total)
+        sec_dos_values.dos_values = dos
 
     def parse_thermodynamical_properties(self):
         T, fe, _, cv = self.properties.get_thermodynamical_properties()
