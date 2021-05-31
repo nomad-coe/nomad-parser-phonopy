@@ -46,4 +46,4 @@ def test_basic(parser):
     sec_scc = archive.section_run[0].section_single_configuration_calculation[0]
     assert np.shape(sec_scc.hessian_matrix) == (8, 8, 3, 3)
     assert np.shape(sec_scc.dos_phonon[0].dos_total[0].dos_values) == (201,)
-    assert len(sec_scc.section_k_band[0].section_k_band_segment) == 10
+    assert len(sec_scc.band_structure_phonon[0].band_structure_segment) == 10

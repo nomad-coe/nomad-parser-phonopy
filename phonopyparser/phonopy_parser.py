@@ -29,8 +29,9 @@ import nomad.config
 from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
-    SingleConfigurationCalculation, KBand, KBandSegment, Dos, DosValues, FrameSequence,\
-    ThermodynamicalProperties, SamplingMethod, Workflow, Phonon, CalculationToCalculationRefs
+    SingleConfigurationCalculation, BandStructure, BandEnergies, BandEnergiesValues,\
+    Dos, DosValues, FrameSequence, ThermodynamicalProperties, SamplingMethod, Workflow,\
+    Phonon, CalculationToCalculationRefs
 
 from nomad.parsing.parser import FairdiParser
 from .metainfo import m_env
@@ -291,15 +292,17 @@ class PhonopyParser(FairdiParser):
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
 
-        sec_k_band = sec_scc.m_create(KBand)
-        sec_k_band.band_structure_kind = 'vibrational'
+        sec_k_band = sec_scc.m_create(BandStructure, SingleConfigurationCalculation.band_structure_phonon)
 
         for i in range(len(freqs)):
-            freq = np.expand_dims(freqs[i], axis=0)
-            sec_k_band_segment = sec_k_band.m_create(KBandSegment)
-            sec_k_band_segment.band_energies = freq
-            sec_k_band_segment.band_k_points = bands[i]
-            sec_k_band_segment.band_segm_labels = bands_labels[i]
+            sec_k_band_segment = sec_k_band.m_create(BandEnergies)
+            sec_k_band_segment.band_energies_kpoints = bands[i]
+            labels = [None] * len(bands[i])
+            labels[0], labels[-1] = [str(label) for label in bands_labels[i]]
+            sec_k_band_segment.band_energies_kpoints_labels = labels
+            for kpt in range(len(freqs[i])):
+                sec_k_band_segment.band_energies_kpoints_index = kpt
+                sec_k_band_segment.band_energies_values = freqs[i][kpt]
 
     def parse_dos(self):
         f, dos = self.properties.get_dos()
