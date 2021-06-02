@@ -313,9 +313,9 @@ class PhonopyParser(FairdiParser):
 
         sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
         sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_phonon)
-        sec_dos.dos_energies = f
-        sec_dos_values = sec_dos.m_create(DosValues, Dos.dos_total)
-        sec_dos_values.dos_values = dos
+        sec_dos.energies = f
+        sec_dos_values = sec_dos.m_create(DosValues, Dos.total)
+        sec_dos_values.value = dos
 
     def parse_thermodynamical_properties(self):
         T, fe, _, cv = self.properties.get_thermodynamical_properties()

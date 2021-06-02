@@ -45,5 +45,5 @@ def test_basic(parser):
     assert archive.section_run[0].section_method[0].x_phonopy_displacement.magnitude == 1e-12
     sec_scc = archive.section_run[0].section_single_configuration_calculation[0]
     assert np.shape(sec_scc.hessian_matrix) == (8, 8, 3, 3)
-    assert np.shape(sec_scc.dos_phonon[0].dos_total[0].dos_values) == (201,)
+    assert np.shape(sec_scc.dos_phonon[0].total[0].value) == (201,)
     assert len(sec_scc.band_structure_phonon[0].band_structure_segment) == 10
