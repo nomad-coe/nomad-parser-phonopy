@@ -29,7 +29,7 @@ import nomad.config
 from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
-    SingleConfigurationCalculation, BandStructure, BandEnergies, BandEnergiesValues,\
+    SingleConfigurationCalculation, BandStructure, BandEnergies,\
     Dos, DosValues, FrameSequence, ThermodynamicalProperties, SamplingMethod, Workflow,\
     Phonon, CalculationToCalculationRefs
 
@@ -300,10 +300,7 @@ class PhonopyParser(FairdiParser):
             labels = [None] * len(bands[i])
             labels[0], labels[-1] = [str(label) for label in bands_labels[i]]
             sec_k_band_segment.kpoints_labels = labels
-            for kpt in range(len(freqs[i])):
-                sec_band_energies = sec_k_band_segment.m_create(BandEnergiesValues)
-                sec_band_energies.kpoints_index = kpt
-                sec_band_energies.values = freqs[i][kpt]
+            sec_k_band_segment.value = [freqs[i]]
 
     def parse_dos(self):
         f, dos = self.properties.get_dos()
