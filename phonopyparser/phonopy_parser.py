@@ -203,7 +203,7 @@ class PhonopyParser(FairdiParser):
     def __init__(self, **kwargs):
         super().__init__(
             name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
-            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
+            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phon.+yaml)')
         )
         self._kwargs = kwargs
         self.control_parser = ControlParser()
@@ -222,7 +222,7 @@ class PhonopyParser(FairdiParser):
     def calculator(self):
         if 'control.in' in self.mainfile:
             return 'fhi-aims'
-        elif 'phonon.yaml' in self.mainfile:
+        elif self.mainfile.endswith('.yaml'):
             return 'vasp'
 
     @property
@@ -238,7 +238,7 @@ class PhonopyParser(FairdiParser):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(self.mainfile))
 
-        phonopy_obj = phonopy.load('phonon.yaml')
+        phonopy_obj = phonopy.load(self.mainfile)
         os.chdir(cwd)
 
         self._phonopy_obj = phonopy_obj
@@ -391,8 +391,11 @@ class PhonopyParser(FairdiParser):
         super_cell = (super_cell * ureg.angstrom).to('meter').magnitude
         super_pos = (super_pos * ureg.angstrom).to('meter').magnitude
 
-        displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
-        displacement = (displacement * ureg.angstrom).to('meter').magnitude
+        try:
+            displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
+            displacement = (displacement * ureg.angstrom).to('meter').magnitude
+        except Exception:
+            displacement = None
 
         supercell_matrix = phonopy_obj.supercell_matrix
         sym_tol = phonopy_obj.symmetry.tolerance
@@ -419,7 +422,8 @@ class PhonopyParser(FairdiParser):
         # should be expanded to include phonon related method parameters
         sec_method.electronic_structure_method = 'DFT'
         sec_method.x_phonopy_symprec = sym_tol
-        sec_method.x_phonopy_displacement = displacement
+        if displacement is not None:
+            sec_method.x_phonopy_displacement = displacement
 
         try:
             force_constants = phonopy_obj.get_force_constants()
