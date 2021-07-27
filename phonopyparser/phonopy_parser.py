@@ -238,41 +238,46 @@ class PhonopyParser(FairdiParser):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(self.mainfile))
 
-        phonopy_obj = phonopy.load(self.mainfile)
-        os.chdir(cwd)
+        try:
+            phonopy_obj = phonopy.load(self.mainfile)
+        finally:
+            os.chdir(cwd)
 
         self._phonopy_obj = phonopy_obj
 
     def _build_phonopy_object_fhi_aims(self):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.dirname(self.mainfile)))
-        cell_obj = read_aims('geometry.in')
-        self.control_parser.mainfile = 'control.in'
-        supercell_matrix = self.control_parser.get('supercell')
-        displacement = self.control_parser.get('displacement', 0.001)
-        sym = self.control_parser.get('symmetry_thresh', 1e-6)
-        try:
-            phonopy_obj = phonopy.Phonopy(cell_obj, supercell_matrix, symprec=sym)
-            phonopy_obj.generate_displacements(distance=displacement)
-            supercells = phonopy_obj.get_supercells_with_displacements()
-            set_of_forces, relative_paths = read_forces_aims(supercells, logger=self.logger)
-        except Exception:
-            self.logger.error("Error generating phonopy object.")
-            set_of_forces = []
-            phonopy_obj = None
-            relative_paths = []
 
-        prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
-        # Try to resolve references as paths relative to the upload root.
         try:
-            for path in relative_paths:
-                abs_path = "%s%s" % (prep_path[0], path)
-                rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
-                self.references.append(rel_path)
-        except Exception:
-            self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
+            cell_obj = read_aims('geometry.in')
+            self.control_parser.mainfile = 'control.in'
+            supercell_matrix = self.control_parser.get('supercell')
+            displacement = self.control_parser.get('displacement', 0.001)
+            sym = self.control_parser.get('symmetry_thresh', 1e-6)
+            try:
+                phonopy_obj = phonopy.Phonopy(cell_obj, supercell_matrix, symprec=sym)
+                phonopy_obj.generate_displacements(distance=displacement)
+                supercells = phonopy_obj.get_supercells_with_displacements()
+                set_of_forces, relative_paths = read_forces_aims(supercells, logger=self.logger)
+            except Exception:
+                self.logger.error("Error generating phonopy object.")
+                set_of_forces = []
+                phonopy_obj = None
+                relative_paths = []
 
-        os.chdir(cwd)
+            prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
+            # Try to resolve references as paths relative to the upload root.
+            try:
+                for path in relative_paths:
+                    abs_path = "%s%s" % (prep_path[0], path)
+                    rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
+                    self.references.append(rel_path)
+            except Exception:
+                self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
+
+        finally:
+            os.chdir(cwd)
 
         if set_of_forces:
             phonopy_obj.set_forces(set_of_forces)
