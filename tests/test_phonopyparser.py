@@ -47,3 +47,8 @@ def test_basic(parser):
     assert np.shape(sec_scc.hessian_matrix) == (8, 8, 3, 3)
     assert np.shape(sec_scc.section_dos[0].dos_values) == (1, 201)
     assert len(sec_scc.section_k_band[0].section_k_band_segment) == 10
+
+
+def test_vasp(parser):
+    archive = EntryArchive()
+    parser.parse('tests/data/vasp/phonopy.yaml', archive, None)

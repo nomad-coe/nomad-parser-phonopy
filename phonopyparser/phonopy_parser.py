@@ -444,6 +444,10 @@ class PhonopyParser(FairdiParser):
         sec_scc.single_configuration_to_calculation_method_ref = sec_method
         sec_scc.hessian_matrix = force_constants
 
+        # get bandstructure configuration file
+        maindir = os.path.dirname(self.mainfile)
+        files = [f for f in os.listdir(maindir) if f.endswith('.conf')]
+        self._kwargs.update({'band_conf': os.path.join(maindir, files[0]) if files else None})
         self.properties = PhononProperties(self.phonopy_obj, self.logger, **self._kwargs)
 
         self.parse_bandstructure()
