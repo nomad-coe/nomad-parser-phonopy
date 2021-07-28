@@ -287,6 +287,8 @@ class PhonopyParser(FairdiParser):
 
     def parse_bandstructure(self):
         freqs, bands, bands_labels = self.properties.get_bandstructure()
+        if freqs is None:
+            return
 
         # convert THz to eV
         freqs = freqs * THzToEv

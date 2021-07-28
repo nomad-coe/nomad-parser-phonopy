@@ -19,7 +19,7 @@
 import numpy as np
 
 from ase.geometry import crystal_structure_from_cell
-from ase.dft.kpoints import special_paths, parse_path_string
+from ase.dft.kpoints import special_paths, parse_path_string, get_special_points
 try:
     from ase.dft.kpoints import special_points
 except ImportError:
@@ -39,7 +39,12 @@ def generate_kpath_ase(cell, symprec):
     if paths is None:
         paths = special_paths['orthorhombic']
     paths = parse_path_string(special_paths[lattice])
-    points = special_points[lattice]
+    points = special_points.get(lattice)
+    if points is None:
+        try:
+            points = get_special_points(cell)
+        except Exception:
+            return []
     k_points = []
     for p in paths:
         k_points.append([points[k] for k in p])
@@ -97,6 +102,8 @@ class PhononProperties():
         unit_cell = phonopy_obj.unitcell.get_cell()
         sym_tol = phonopy_obj.symmetry.tolerance
         parameters = generate_kpath_ase(unit_cell, sym_tol)
+        if not parameters:
+            return None, None, None
 
         # Distances calculated in phonopy.band_structure.BandStructure object
         # are based on absolute positions of q-points in reciprocal space
