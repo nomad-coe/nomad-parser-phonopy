@@ -17,9 +17,11 @@
 # limitations under the License.
 #
 import numpy as np
+import re
+from fractions import Fraction
 
 from ase.geometry import crystal_structure_from_cell
-from ase.dft.kpoints import special_paths, parse_path_string
+from ase.dft.kpoints import special_paths, parse_path_string, get_special_points
 try:
     from ase.dft.kpoints import special_points
 except ImportError:
@@ -29,17 +31,7 @@ from phonopy.phonon.band_structure import BandStructure
 from phonopy.units import EvTokJmol, VaspToTHz
 
 
-def generate_kpath_ase(cell, symprec):
-
-    eig_val_max = np.real(np.linalg.eigvals(cell)).max()
-    eps = eig_val_max * symprec
-
-    lattice = crystal_structure_from_cell(cell, eps)
-    paths = special_paths.get(lattice, None)
-    if paths is None:
-        paths = special_paths['orthorhombic']
-    paths = parse_path_string(special_paths[lattice])
-    points = special_points[lattice]
+def generate_kpath_parameters(points, paths, npoints):
     k_points = []
     for p in paths:
         k_points.append([points[k] for k in p])
@@ -50,7 +42,7 @@ def generate_kpath_ase(cell, symprec):
     for h, seg in enumerate(k_points):
         for i, path in enumerate(seg):
             parameter = {}
-            parameter['npoints'] = 100
+            parameter['npoints'] = npoints
             parameter['startname'] = paths[h][i]
             if i == 0 and len(seg) > 2:
                 parameter['kstart'] = path
@@ -71,6 +63,54 @@ def generate_kpath_ase(cell, symprec):
     return parameters
 
 
+def read_kpath(filename):
+    with open(filename) as f:
+        string = f.read()
+
+        labels = re.search(r'BAND_LABELS\s*=\s*(.+)', string)
+        try:
+            labels = labels.group(1).strip().split()
+        except Exception:
+            return
+
+        points = re.search(r'BAND\s*=\s*(.+)', string)
+        try:
+            points = points.group(1)
+            points = [float(Fraction(p)) for p in points.split()]
+            points = np.reshape(points, (len(labels), 3))
+            points = {labels[i]: points[i] for i in range(len(labels))}
+        except Exception:
+            return
+
+        npoints = re.search(r'BAND_POINTS\s*\=\s*(\d+)', string)
+        if npoints is not None:
+            npoints = int(npoints.group(1))
+        else:
+            npoints = 100
+
+    return generate_kpath_parameters(points, [labels], npoints)
+
+
+def generate_kpath_ase(cell, symprec):
+
+    eig_val_max = np.real(np.linalg.eigvals(cell)).max()
+    eps = eig_val_max * symprec
+
+    lattice = crystal_structure_from_cell(cell, eps)
+    paths = special_paths.get(lattice, None)
+    if paths is None:
+        paths = special_paths['orthorhombic']
+    paths = parse_path_string(special_paths[lattice])
+    points = special_points.get(lattice)
+    if points is None:
+        try:
+            points = get_special_points(cell)
+        except Exception:
+            return []
+
+    return generate_kpath_parameters(points, paths, 100)
+
+
 class PhononProperties():
     def __init__(self, phonopy_obj, logger, **kwargs):
         self.logger = logger
@@ -78,6 +118,7 @@ class PhononProperties():
         self.t_max = kwargs.get('t_max', 1000)
         self.t_min = kwargs.get('t_min', 0)
         self.t_step = kwargs.get('t_step', 100)
+        self.band_conf = kwargs.get('band_conf')
 
         self.n_atoms = len(phonopy_obj.unitcell)
 
@@ -96,7 +137,12 @@ class PhononProperties():
 
         unit_cell = phonopy_obj.unitcell.get_cell()
         sym_tol = phonopy_obj.symmetry.tolerance
-        parameters = generate_kpath_ase(unit_cell, sym_tol)
+        if self.band_conf is not None:
+            parameters = read_kpath(self.band_conf)
+        else:
+            parameters = generate_kpath_ase(unit_cell, sym_tol)
+        if not parameters:
+            return None, None, None
 
         # Distances calculated in phonopy.band_structure.BandStructure object
         # are based on absolute positions of q-points in reciprocal space

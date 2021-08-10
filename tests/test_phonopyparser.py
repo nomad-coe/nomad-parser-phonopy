@@ -37,13 +37,19 @@ def test_basic(parser):
     parser.parse('tests/data/Ge/phonopy-FHI-aims-displacement-01/control.in', archive, None)
 
     # need to assert values, no unbiased reference
-    sec_thermo = archive.section_run[0].section_frame_sequence[0].section_thermodynamical_properties[0]
-    assert len(sec_thermo.thermodynamical_property_temperature) == 11
-    assert len(sec_thermo.thermodynamical_property_heat_capacity_C_v) == 11
-    assert len(sec_thermo.vibrational_free_energy_at_constant_volume) == 11
+    sec_thermo = archive.run[0].calculation[0].thermodynamics
+    assert len(sec_thermo) == 11
+    assert sec_thermo[0].temperature is not None
+    assert sec_thermo[0].heat_capacity_c_v is not None
+    assert sec_thermo[0].vibrational_free_energy_at_constant_volume is not None
 
-    assert archive.section_run[0].section_method[0].x_phonopy_displacement.magnitude == 1e-12
-    sec_scc = archive.section_run[0].section_single_configuration_calculation[0]
+    assert archive.run[0].method[0].x_phonopy_displacement.magnitude == 1e-12
+    sec_scc = archive.run[0].calculation[0]
     assert np.shape(sec_scc.hessian_matrix) == (8, 8, 3, 3)
     assert np.shape(sec_scc.dos_phonon[0].total[0].value) == (201,)
     assert len(sec_scc.band_structure_phonon[0].band_structure_segment) == 10
+
+
+def test_vasp(parser):
+    archive = EntryArchive()
+    parser.parse('tests/data/vasp/phonopy.yaml', archive, None)

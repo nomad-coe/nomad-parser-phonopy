@@ -28,13 +28,20 @@ from phonopyparser.phonopy_properties import PhononProperties
 import nomad.config
 from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
-from nomad.datamodel.metainfo.common_dft import Run, System, SystemToSystemRefs, Method,\
-    SingleConfigurationCalculation, BandStructure, BandEnergies,\
-    Dos, DosValues, FrameSequence, ThermodynamicalProperties, SamplingMethod, Workflow,\
-    Phonon, CalculationToCalculationRefs
+from nomad.datamodel.metainfo.run.run import Run, Program
+from nomad.datamodel.metainfo.run.method import (
+    Method, Electronic, MethodReference
+)
+from nomad.datamodel.metainfo.run.system import (
+    System, Atoms, SystemReference
+)
+from nomad.datamodel.metainfo.run.calculation import (
+    Calculation, BandStructure, BandEnergies, CalculationReference, Dos, DosValues, Thermodynamics
+)
+from nomad.datamodel.metainfo.workflow import Workflow, Phonon
 
+import phonopyparser.metainfo.phonopy  # pylint: disable=unused-import
 from nomad.parsing.parser import FairdiParser
-from .metainfo import m_env
 
 
 def read_aims(filename):
@@ -223,7 +230,7 @@ class PhonopyParser(FairdiParser):
     def calculator(self):
         if 'control.in' in self.mainfile:
             return 'fhi-aims'
-        elif 'phonon.yaml' in self.mainfile:
+        elif self.mainfile.endswith('.yaml'):
             return 'vasp'
 
     @property
@@ -239,41 +246,45 @@ class PhonopyParser(FairdiParser):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(self.mainfile))
 
-        phonopy_obj = phonopy.load('phonon.yaml')
-        os.chdir(cwd)
+        try:
+            phonopy_obj = phonopy.load(self.mainfile)
+        finally:
+            os.chdir(cwd)
 
         self._phonopy_obj = phonopy_obj
 
     def _build_phonopy_object_fhi_aims(self):
         cwd = os.getcwd()
         os.chdir(os.path.dirname(os.path.dirname(self.mainfile)))
-        cell_obj = read_aims('geometry.in')
-        self.control_parser.mainfile = 'control.in'
-        supercell_matrix = self.control_parser.get('supercell')
-        displacement = self.control_parser.get('displacement', 0.001)
-        sym = self.control_parser.get('symmetry_thresh', 1e-6)
         try:
-            phonopy_obj = phonopy.Phonopy(cell_obj, supercell_matrix, symprec=sym)
-            phonopy_obj.generate_displacements(distance=displacement)
-            supercells = phonopy_obj.get_supercells_with_displacements()
-            set_of_forces, relative_paths = read_forces_aims(supercells, logger=self.logger)
-        except Exception:
-            self.logger.error("Error generating phonopy object.")
-            set_of_forces = []
-            phonopy_obj = None
-            relative_paths = []
+            cell_obj = read_aims('geometry.in')
+            self.control_parser.mainfile = 'control.in'
+            supercell_matrix = self.control_parser.get('supercell')
+            displacement = self.control_parser.get('displacement', 0.001)
+            sym = self.control_parser.get('symmetry_thresh', 1e-6)
+            try:
+                phonopy_obj = phonopy.Phonopy(cell_obj, supercell_matrix, symprec=sym)
+                phonopy_obj.generate_displacements(distance=displacement)
+                supercells = phonopy_obj.get_supercells_with_displacements()
+                set_of_forces, relative_paths = read_forces_aims(supercells, logger=self.logger)
+            except Exception:
+                self.logger.error("Error generating phonopy object.")
+                set_of_forces = []
+                phonopy_obj = None
+                relative_paths = []
 
-        prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
-        # Try to resolve references as paths relative to the upload root.
-        try:
-            for path in relative_paths:
-                abs_path = "%s%s" % (prep_path[0], path)
-                rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
-                self.references.append(rel_path)
-        except Exception:
-            self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
+            prep_path = self.mainfile.split("phonopy-FHI-aims-displacement-")
+            # Try to resolve references as paths relative to the upload root.
+            try:
+                for path in relative_paths:
+                    abs_path = "%s%s" % (prep_path[0], path)
+                    rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
+                    self.references.append(rel_path)
+            except Exception:
+                self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
 
-        os.chdir(cwd)
+        finally:
+            os.chdir(cwd)
 
         if set_of_forces:
             phonopy_obj.set_forces(set_of_forces)
@@ -283,6 +294,8 @@ class PhonopyParser(FairdiParser):
 
     def parse_bandstructure(self):
         freqs, bands, bands_labels = self.properties.get_bandstructure()
+        if freqs is None:
+            return
 
         # convert THz to eV
         freqs = freqs * THzToEv
@@ -290,9 +303,9 @@ class PhonopyParser(FairdiParser):
         # convert eV to J
         freqs = (freqs * ureg.eV).to('joules').magnitude
 
-        sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
+        sec_scc = self.archive.run[0].calculation[0]
 
-        sec_k_band = sec_scc.m_create(BandStructure, SingleConfigurationCalculation.band_structure_phonon)
+        sec_k_band = sec_scc.m_create(BandStructure, Calculation.band_structure_phonon)
 
         for i in range(len(freqs)):
             sec_k_band_segment = sec_k_band.m_create(BandEnergies)
@@ -309,8 +322,8 @@ class PhonopyParser(FairdiParser):
         f = f * THzToEv
         f = (f * ureg.eV).to('joules').magnitude
 
-        sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
-        sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_phonon)
+        sec_scc = self.archive.run[0].calculation[0]
+        sec_dos = sec_scc.m_create(Dos, Calculation.dos_phonon)
         sec_dos.energies = f
         sec_dos_values = sec_dos.m_create(DosValues, Dos.total)
         sec_dos_values.value = dos
@@ -334,29 +347,24 @@ class PhonopyParser(FairdiParser):
 
         cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
 
-        sec_run = self.archive.section_run[0]
-        sec_scc = sec_run.section_single_configuration_calculation
+        sec_run = self.archive.run[0]
+        sec_scc = sec_run.calculation[0]
 
-        sec_frame_sequence = sec_run.m_create(FrameSequence)
-        sec_frame_sequence.frame_sequence_local_frames_ref = sec_scc
+        for n, Tn in enumerate(T):
+            sec_thermo_prop = sec_scc.m_create(Thermodynamics)
+            sec_thermo_prop.temperature = Tn
+            sec_thermo_prop.vibrational_free_energy_at_constant_volume = fe[n]
+            sec_thermo_prop.heat_capacity_c_v = cv[n]
 
-        sec_thermo_prop = sec_frame_sequence.m_create(ThermodynamicalProperties)
-        sec_thermo_prop.thermodynamical_property_temperature = T
-        sec_thermo_prop.vibrational_free_energy_at_constant_volume = fe
-        sec_thermo_prop.thermodynamical_property_heat_capacity_C_v = cv
-
-        sec_sampling_method = sec_run.m_create(SamplingMethod)
-        sec_sampling_method.sampling_method = 'taylor_expansion'
-        sec_sampling_method.sampling_method_expansion_order = 2
-
-        sec_frame_sequence.frame_sequence_to_sampling_ref = sec_sampling_method
+        # TODO create a taylor_expansion workflow?
+        # sampling_method = 'taylor_expansion'
+        # expansion_order = 2
 
     def parse_ref(self):
-        sec_scc = self.archive.section_run[0].section_single_configuration_calculation[0]
+        sec_scc = self.archive.run[0].calculation[0]
         for ref in self.references:
-            sec_calc_refs = sec_scc.m_create(CalculationToCalculationRefs)
-            sec_calc_refs.calculation_to_calculation_kind = 'source_calculation'
-            sec_calc_refs.calculation_to_calculation_external_url = ref
+            sec_scc.calculation_ref.append(
+                CalculationReference(kind='source_calculation', external_url=ref))
 
     def parse(self, filepath, archive, logger, **kwargs):
         self.mainfile = os.path.abspath(filepath)
@@ -364,11 +372,8 @@ class PhonopyParser(FairdiParser):
         self.logger = logger if logger is not None else logging
         self._kwargs.update(kwargs)
 
-        self._metainfo_env = m_env
-
         sec_run = self.archive.m_create(Run)
-        sec_run.program_name = 'Phonopy'
-        sec_run.program_version = phonopy.__version__
+        sec_run.program = Program(name='Phonopy', version=phonopy.__version__)
 
         phonopy_obj = self.phonopy_obj
 
@@ -388,35 +393,39 @@ class PhonopyParser(FairdiParser):
         super_cell = (super_cell * ureg.angstrom).to('meter').magnitude
         super_pos = (super_pos * ureg.angstrom).to('meter').magnitude
 
-        displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
-        displacement = (displacement * ureg.angstrom).to('meter').magnitude
+        try:
+            displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
+            displacement = displacement * ureg.angstrom
+        except Exception:
+            displacement = None
 
         supercell_matrix = phonopy_obj.supercell_matrix
         sym_tol = phonopy_obj.symmetry.tolerance
 
         sec_system_unit = sec_run.m_create(System)
-        sec_system_unit.configuration_periodic_dimensions = pbc
-        sec_system_unit.atom_labels = unit_sym
-        sec_system_unit.atom_positions = unit_pos
-        sec_system_unit.simulation_cell = unit_cell
+        sec_atoms = sec_system_unit.m_create(Atoms)
+        sec_atoms.periodic = pbc
+        sec_atoms.labels = unit_sym
+        sec_atoms.positions = unit_pos
+        sec_atoms.lattice_vectors = unit_cell
 
         sec_system = sec_run.m_create(System)
-        sec_system_to_system_refs = sec_system.m_create(SystemToSystemRefs)
-        sec_system_to_system_refs.system_to_system_kind = 'subsystem'
-        sec_system_to_system_refs.system_to_system_ref = sec_system_unit
-        sec_system.configuration_periodic_dimensions = pbc
-        sec_system.atom_labels = super_sym
-        sec_system.atom_positions = super_pos
-        sec_system.simulation_cell = super_cell
-        sec_system.SC_matrix = supercell_matrix
+        sec_system.system_ref.append(SystemReference(kind='subsystem', value=sec_system_unit))
+        sec_atoms = sec_system.m_create(Atoms)
+        sec_atoms.periodic = pbc
+        sec_atoms.labels = super_sym
+        sec_atoms.positions = super_pos
+        sec_atoms.lattice_vectors = super_cell
+        sec_atoms.supercell_matrix = supercell_matrix
         sec_system.x_phonopy_original_system_ref = sec_system_unit
 
         sec_method = sec_run.m_create(Method)
         # TODO I put this so as to have a recognizable section method, but metainfo
         # should be expanded to include phonon related method parameters
-        sec_method.electronic_structure_method = 'DFT'
+        sec_method.electronic = Electronic(method='DFT')
         sec_method.x_phonopy_symprec = sym_tol
-        sec_method.x_phonopy_displacement = displacement
+        if displacement is not None:
+            sec_method.x_phonopy_displacement = displacement
 
         try:
             force_constants = phonopy_obj.get_force_constants()
@@ -425,11 +434,15 @@ class PhonopyParser(FairdiParser):
             self.logger.error('Error producing force constants.')
             return
 
-        sec_scc = sec_run.m_create(SingleConfigurationCalculation)
-        sec_scc.single_configuration_calculation_to_system_ref = sec_system
-        sec_scc.single_configuration_to_calculation_method_ref = sec_method
+        sec_scc = sec_run.m_create(Calculation)
+        sec_scc.system_ref.append(SystemReference(value=sec_system))
+        sec_scc.method_ref.append(MethodReference(value=sec_method))
         sec_scc.hessian_matrix = force_constants
 
+        # get bandstructure configuration file
+        maindir = os.path.dirname(self.mainfile)
+        files = [f for f in os.listdir(maindir) if f.endswith('.conf')]
+        self._kwargs.update({'band_conf': os.path.join(maindir, files[0]) if files else None})
         self.properties = PhononProperties(self.phonopy_obj, self.logger, **self._kwargs)
 
         self.parse_bandstructure()
