@@ -47,7 +47,7 @@ def test_basic(parser):
     sec_scc = archive.run[0].calculation[0]
     assert np.shape(sec_scc.hessian_matrix) == (8, 8, 3, 3)
     assert np.shape(sec_scc.dos_phonon[0].total[0].value) == (201,)
-    assert len(sec_scc.band_structure_phonon[0].band_structure_segment) == 10
+    assert len(sec_scc.band_structure_phonon[0].segment) == 10
 
 
 def test_vasp(parser):

@@ -313,7 +313,7 @@ class PhonopyParser(FairdiParser):
             labels = [None] * len(bands[i])
             labels[0], labels[-1] = [str(label) for label in bands_labels[i]]
             sec_k_band_segment.kpoints_labels = labels
-            sec_k_band_segment.value = [freqs[i]]
+            sec_k_band_segment.energies = [freqs[i]]
 
     def parse_dos(self):
         f, dos = self.properties.get_dos()
