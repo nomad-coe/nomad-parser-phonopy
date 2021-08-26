@@ -25,6 +25,9 @@ from nomad.metainfo import (  # pylint: disable=unused-import
 from nomad.datamodel.metainfo import run
 
 
+m_package = Package()
+
+
 class x_phonopy_input(MCategory):
     '''
     Information about properties that concern phonopy calculations.

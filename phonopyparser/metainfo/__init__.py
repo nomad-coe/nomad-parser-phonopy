@@ -16,4 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import phonopyparser.metainfo.phonopy
+from nomad.metainfo import Environment
+
+from . import phonopy
+
+m_env = Environment()
+m_env.m_add_sub_section(Environment.packages, phonopy.m_package)

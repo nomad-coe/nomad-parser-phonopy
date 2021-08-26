@@ -211,7 +211,7 @@ class PhonopyParser(FairdiParser):
     def __init__(self, **kwargs):
         super().__init__(
             name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
-            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phonon.yaml)')
+            mainfile_name_re=(r'(.*/phonopy-FHI-aims-displacement-0*1/control.in$)|(.*/phon.+yaml)')
         )
         self._kwargs = kwargs
         self.control_parser = ControlParser()
