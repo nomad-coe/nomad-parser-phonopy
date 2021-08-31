@@ -49,6 +49,9 @@ def test_basic(parser):
     assert np.shape(sec_scc.dos_phonon[0].total[0].value) == (201,)
     assert len(sec_scc.band_structure_phonon[0].segment) == 10
 
+    assert archive.run[0].calculation[0].system_ref is not None
+    assert archive.run[0].calculation[0].method_ref is not None
+
 
 def test_vasp(parser):
     archive = EntryArchive()

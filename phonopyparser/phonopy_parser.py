@@ -28,15 +28,15 @@ from phonopyparser.phonopy_properties import PhononProperties
 import nomad.config
 from nomad.units import ureg
 from nomad.parsing.file_parser import TextParser, Quantity
-from nomad.datamodel.metainfo.run.run import Run, Program
-from nomad.datamodel.metainfo.run.method import (
-    Method, Electronic, MethodReference
+from nomad.datamodel.metainfo.simulation.run import Run, Program
+from nomad.datamodel.metainfo.simulation.method import (
+    Method, Electronic
 )
-from nomad.datamodel.metainfo.run.system import (
-    System, Atoms, SystemReference
+from nomad.datamodel.metainfo.simulation.system import (
+    System, Atoms
 )
-from nomad.datamodel.metainfo.run.calculation import (
-    Calculation, BandStructure, BandEnergies, CalculationReference, Dos, DosValues, Thermodynamics
+from nomad.datamodel.metainfo.simulation.calculation import (
+    Calculation, BandStructure, BandEnergies, Dos, DosValues, Thermodynamics
 )
 from nomad.datamodel.metainfo.workflow import Workflow, Phonon
 
@@ -310,9 +310,7 @@ class PhonopyParser(FairdiParser):
         for i in range(len(freqs)):
             sec_k_band_segment = sec_k_band.m_create(BandEnergies)
             sec_k_band_segment.kpoints = bands[i]
-            labels = [None] * len(bands[i])
-            labels[0], labels[-1] = [str(label) for label in bands_labels[i]]
-            sec_k_band_segment.kpoints_labels = labels
+            sec_k_band_segment.endpoints_labels = [str(label) for label in bands_labels[i]]
             sec_k_band_segment.energies = [freqs[i]]
 
     def parse_dos(self):
@@ -362,9 +360,7 @@ class PhonopyParser(FairdiParser):
 
     def parse_ref(self):
         sec_scc = self.archive.run[0].calculation[0]
-        for ref in self.references:
-            sec_scc.calculation_ref.append(
-                CalculationReference(kind='source_calculation', external_url=ref))
+        sec_scc.calculations_path = self.references
 
     def parse(self, filepath, archive, logger, **kwargs):
         self.mainfile = os.path.abspath(filepath)
@@ -410,7 +406,8 @@ class PhonopyParser(FairdiParser):
         sec_atoms.lattice_vectors = unit_cell
 
         sec_system = sec_run.m_create(System)
-        sec_system.system_ref.append(SystemReference(kind='subsystem', value=sec_system_unit))
+        sec_system.sub_system_ref = sec_system_unit
+        sec_system.systems_ref = [sec_system_unit]
         sec_atoms = sec_system.m_create(Atoms)
         sec_atoms.periodic = pbc
         sec_atoms.labels = super_sym
@@ -435,8 +432,8 @@ class PhonopyParser(FairdiParser):
             return
 
         sec_scc = sec_run.m_create(Calculation)
-        sec_scc.system_ref.append(SystemReference(value=sec_system))
-        sec_scc.method_ref.append(MethodReference(value=sec_method))
+        sec_scc.system_ref = sec_system
+        sec_scc.method_ref = sec_method
         sec_scc.hessian_matrix = force_constants
 
         # get bandstructure configuration file
