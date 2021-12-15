@@ -51,12 +51,16 @@ def read_aims(filename):
     fractional = []
     symbols = []
     magmoms = []
+    if not os.path.isfile(filename):
+        return
     with open(filename) as f:
         while True:
             line = f.readline()
             if not line:
                 break
             line = line.split()
+            if len(line) == 0:
+                continue
             if line[0] == 'lattice_vector':
                 cell.append([float(x) for x in line[1:4]])
             elif line[0].startswith('atom'):
@@ -287,8 +291,12 @@ class PhonopyParser(FairdiParser):
             os.chdir(cwd)
 
         if set_of_forces:
-            phonopy_obj.set_forces(set_of_forces)
-            phonopy_obj.produce_force_constants()
+            try:
+                phonopy_obj.set_forces(set_of_forces)
+                phonopy_obj.produce_force_constants()
+            except Exception:
+                self.logger.error('Error producing force constants.')
+                pass
 
         self._phonopy_obj = phonopy_obj
 
@@ -372,16 +380,19 @@ class PhonopyParser(FairdiParser):
         sec_run.program = Program(name='Phonopy', version=phonopy.__version__)
 
         phonopy_obj = self.phonopy_obj
+        if phonopy_obj is None:
+            self.logger.error('Error running phonopy.')
+            return
 
         pbc = np.array((1, 1, 1), bool)
 
-        unit_cell = self.phonopy_obj.unitcell.get_cell()
-        unit_pos = self.phonopy_obj.unitcell.get_positions()
-        unit_sym = np.array(self.phonopy_obj.unitcell.get_chemical_symbols())
+        unit_cell = phonopy_obj.unitcell.get_cell()
+        unit_pos = phonopy_obj.unitcell.get_positions()
+        unit_sym = np.array(phonopy_obj.unitcell.get_chemical_symbols())
 
-        super_cell = self.phonopy_obj.supercell.get_cell()
-        super_pos = self.phonopy_obj.supercell.get_positions()
-        super_sym = np.array(self.phonopy_obj.supercell.get_chemical_symbols())
+        super_cell = phonopy_obj.supercell.get_cell()
+        super_pos = phonopy_obj.supercell.get_positions()
+        super_sym = np.array(phonopy_obj.supercell.get_chemical_symbols())
 
         unit_cell = (unit_cell * ureg.angstrom).to('meter').magnitude
         unit_pos = (unit_pos * ureg.angstrom).to('meter').magnitude

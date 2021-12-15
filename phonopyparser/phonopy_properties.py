@@ -20,12 +20,9 @@ import numpy as np
 import re
 from fractions import Fraction
 
-from ase.geometry import crystal_structure_from_cell
+from ase import lattice as aselattice
+from ase.cell import Cell
 from ase.dft.kpoints import special_paths, parse_path_string, get_special_points
-try:
-    from ase.dft.kpoints import special_points
-except ImportError:
-    from ase.dft.kpoints import sc_special_points as special_points
 
 from phonopy.phonon.band_structure import BandStructure
 from phonopy.units import EvTokJmol, VaspToTHz
@@ -92,16 +89,15 @@ def read_kpath(filename):
 
 
 def generate_kpath_ase(cell, symprec):
-
-    eig_val_max = np.real(np.linalg.eigvals(cell)).max()
-    eps = eig_val_max * symprec
-
-    lattice = crystal_structure_from_cell(cell, eps)
-    paths = special_paths.get(lattice, None)
+    try:
+        lattice = aselattice.get_lattice_from_canonical_cell(Cell(cell))
+        paths = parse_path_string(lattice.special_path)
+        points = lattice.get_special_points()
+    except Exception:
+        paths = None
+        points = None
     if paths is None:
         paths = special_paths['orthorhombic']
-    paths = parse_path_string(special_paths[lattice])
-    points = special_points.get(lattice)
     if points is None:
         try:
             points = get_special_points(cell)
