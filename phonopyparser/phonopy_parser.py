@@ -41,7 +41,7 @@ from nomad.datamodel.metainfo.simulation.calculation import (
 from nomad.datamodel.metainfo.workflow import Workflow, Phonon
 
 import phonopyparser.metainfo.phonopy  # pylint: disable=unused-import
-from nomad.parsing.parser import FairdiParser
+from nomad.parsing.parser import MatchingParser
 
 
 def read_aims(filename):
@@ -141,13 +141,13 @@ def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
 
     def is_equal(reference, calculated):
         if len(reference) != len(calculated):
-            logger.warn('Inconsistent number of atoms.')
+            logger.warning('Inconsistent number of atoms.')
             return False
         if (reference.get_atomic_numbers() != calculated.get_atomic_numbers()).any():
-            logger.warn('Inconsistent species.')
+            logger.warning('Inconsistent species.')
             return False
         if (abs(reference.get_cell() - calculated.get_cell()) > tolerance).any():
-            logger.warn('Inconsistent cell.')
+            logger.warning('Inconsistent cell.')
             return False
         ref_pos = reference.get_scaled_positions()
         cal_pos = calculated.get_scaled_positions()
@@ -155,7 +155,7 @@ def read_forces_aims(reference_supercells, tolerance=1E-6, logger=None):
         ref_pos %= 1.0
         cal_pos %= 1.0
         if (abs(ref_pos - cal_pos) > tolerance).any():
-            logger.warn('Inconsistent positions.')
+            logger.warning('Inconsistent positions.')
             return False
         return True
 
@@ -211,7 +211,9 @@ class ControlParser(TextParser):
             Quantity('nac', r'\n *phonon nac\s*(.+)', str_operation=str_to_nac)]
 
 
-class PhonopyParser(FairdiParser):
+class PhonopyParser(MatchingParser):
+    level = 1
+
     def __init__(self, **kwargs):
         super().__init__(
             name='parsers/phonopy', code_name='Phonopy', code_homepage='https://phonopy.github.io/phonopy/',
@@ -285,7 +287,7 @@ class PhonopyParser(FairdiParser):
                     rel_path = abs_path.split(nomad.config.fs.staging + "/")[1].split("/", 3)[3]
                     self.references.append(rel_path)
             except Exception:
-                self.logger.warn("Could not resolve path to a referenced calculation within the upload.")
+                self.logger.warning("Could not resolve path to a referenced calculation within the upload.")
 
         finally:
             os.chdir(cwd)
@@ -367,8 +369,20 @@ class PhonopyParser(FairdiParser):
         # expansion_order = 2
 
     def parse_ref(self):
+        if not self.archive.m_context:
+            self.logger.warning('Cannot resolve references to calculations without a context.')
+            return
+
         sec_scc = self.archive.run[0].calculation[0]
-        sec_scc.calculations_path = self.references
+        calculations_ref = []
+        for path in self.references:
+            try:
+                archive = self.archive.m_context.resolve_archive(f'../upload/archive/mainfile/{path}')
+                calculation = archive.run[0].calculation[-1]
+                calculations_ref.append(calculation)
+            except Exception as e:
+                self.logger.error('Could not resolve referenced calculations.', exc_info=e, path=path)
+        sec_scc.calculations_ref = calculations_ref
 
     def parse(self, filepath, archive, logger, **kwargs):
         self.mainfile = os.path.abspath(filepath)
@@ -468,3 +482,15 @@ class PhonopyParser(FairdiParser):
         sec_phonon.n_imaginary_frequencies = n_imaginary
         if phonopy_obj.nac_params:
             sec_phonon.with_non_analytic_correction = True
+
+    def after_normalization(self, archive, logger=None) -> None:
+        # Overwrite the result method with method details taken from the first referenced
+        # calculation. The program name and version are kept.
+        self.logger = logger if logger is not None else logging
+        first_referenced_calculation = archive.run[0].calculation[0].calculations_ref[0]
+        referenced_archive = first_referenced_calculation.m_root()
+
+        new_method = referenced_archive.results.method.m_copy()
+        new_method.simulation.program_name = self.archive.results.method.simulation.program_name
+        new_method.simulation.program_version = self.archive.results.method.simulation.program_version
+        archive.results.method = new_method
