@@ -369,20 +369,18 @@ class PhonopyParser(MatchingParser):
         # expansion_order = 2
 
     def parse_ref(self):
-        if not self.archive.m_context:
+        if hasattr(self.archive, 'm_context') and not self.archive.m_context:
             self.logger.warning('Cannot resolve references to calculations without a context.')
             return
 
-        sec_scc = self.archive.run[0].calculation[0]
-        calculations_ref = []
+        workflows_ref = []
         for path in self.references:
             try:
                 archive = self.archive.m_context.resolve_archive(f'../upload/archive/mainfile/{path}')
-                calculation = archive.run[0].calculation[-1]
-                calculations_ref.append(calculation)
+                workflows_ref.append(archive.workflow[0].m_copy())
             except Exception as e:
                 self.logger.error('Could not resolve referenced calculations.', exc_info=e, path=path)
-        sec_scc.calculations_ref = calculations_ref
+        self.archive.workflow[0].workflows_ref = workflows_ref
 
     def parse(self, filepath, archive, logger, **kwargs):
         self.mainfile = os.path.abspath(filepath)
@@ -470,7 +468,6 @@ class PhonopyParser(MatchingParser):
         self.parse_bandstructure()
         self.parse_dos()
         self.parse_thermodynamical_properties()
-        self.parse_ref()
 
         sec_workflow = self.archive.m_create(Workflow)
         sec_workflow.workflow_type = 'phonon'
@@ -483,11 +480,13 @@ class PhonopyParser(MatchingParser):
         if phonopy_obj.nac_params:
             sec_phonon.with_non_analytic_correction = True
 
+        self.parse_ref()
+
     def after_normalization(self, archive, logger=None) -> None:
         # Overwrite the result method with method details taken from the first referenced
         # calculation. The program name and version are kept.
         self.logger = logger if logger is not None else logging
-        first_referenced_calculation = archive.run[0].calculation[0].calculations_ref[0]
+        first_referenced_calculation = archive.workflow[0].workflows_ref[0].calculations_ref[0]
         referenced_archive = first_referenced_calculation.m_root()
 
         new_method = referenced_archive.results.method.m_copy()
