@@ -486,8 +486,12 @@ class PhonopyParser(MatchingParser):
         # Overwrite the result method with method details taken from the first referenced
         # calculation. The program name and version are kept.
         self.logger = logger if logger is not None else logging
-        first_referenced_calculation = archive.workflow[0].workflows_ref[0].calculations_ref[0]
-        referenced_archive = first_referenced_calculation.m_root()
+        try:
+            first_referenced_calculation = archive.workflow[0].workflows_ref[0].calculations_ref[0]
+            referenced_archive = first_referenced_calculation.m_root()
+        except Exception:
+            self.logger.warn('Error getting referenced calculation.')
+            return
 
         new_method = referenced_archive.results.method.m_copy()
         new_method.simulation.program_name = self.archive.results.method.simulation.program_name
